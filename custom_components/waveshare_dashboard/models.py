@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional
 
-from .const import DEFAULT_PAGES, IMAGE_WIDTH, IMAGE_HEIGHT
+from .const import DEFAULT_PAGES, IMAGE_WIDTH, IMAGE_HEIGHT, DEFAULT_DISPLAY_MODEL
 
 
 @dataclass
@@ -202,7 +202,8 @@ class DeviceConfig:
 
     device_id: str
     api_token: str
-    name: str = "reTerminal"
+    name: str = "Waveshare E-Paper"
+    display_model: str = DEFAULT_DISPLAY_MODEL  # e.g. "7.50inV2", "2.90in", etc.
     deep_sleep_start: int = 0
     deep_sleep_end: int = 5
     wifi_power_save: bool = False
@@ -274,6 +275,7 @@ class DeviceConfig:
             "device_id": self.device_id,
             "api_token": self.api_token,
             "name": self.name,
+            "display_model": self.display_model,
             "current_page": self.current_page,
             "orientation": self.orientation,
             "dark_mode": self.dark_mode,
@@ -340,7 +342,8 @@ class DeviceConfig:
         cfg = DeviceConfig(
             device_id=str(data.get("device_id", "")),
             api_token=str(data.get("api_token", "")),
-            name=str(data.get("name", "reTerminal")),
+            name=str(data.get("name", "Waveshare E-Paper")),
+            display_model=str(data.get("display_model", DEFAULT_DISPLAY_MODEL)),
             pages=pages,
             current_page=current_page,
             orientation=orientation,
