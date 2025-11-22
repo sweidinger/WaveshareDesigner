@@ -1,0 +1,156 @@
+# ============================================================================
+# Waveshare E-Paper ESP32 Driver Board - ESPHome Configuration Template
+# ============================================================================
+# INSTRUCTIONS:
+#
+# STEP 1: Copy the Material Design Icons font file
+#         - From this repo: font_ttf/font_ttf/materialdesignicons-webfont.ttf
+#         - To ESPHome: /config/esphome/fonts/materialdesignicons-webfont.ttf
+#         (Create the fonts folder if it doesn't exist)
+#
+# STEP 2: Set the hardware switch on your Waveshare ESP32 Driver Board
+#         - Position A or B (check your display model documentation)
+#
+# STEP 3: Create a new device in ESPHome
+#         - Click "New Device"
+#         - Name: waveshare-epaper (or your choice)
+#         - Select: ESP32
+#         - ESPHome will auto-generate a basic config
+#
+# STEP 4: Copy the "HARDWARE SECTIONS" below (from ▼ START to ▲ END)
+#         Paste them AFTER the captive_portal: line in your ESPHome config
+#
+# STEP 5: Design your dashboard in Home Assistant
+#         - Open the Waveshare Dashboard integration
+#         - Select your display model
+#         - Click "Save Layout" when done
+#         - Click "Generate Snippet"
+#
+# STEP 6: From the generated snippet, copy and paste at the end:
+#         - globals:
+#         - font:
+#         - text_sensor: (only if you used sensor_text widgets)
+#         - button: (optional virtual buttons for HA)
+#         - script: (if generated)
+#         - display:
+#
+# ============================================================================
+
+# ============================================================================
+# EXAMPLE: ESPHome Auto-Generated Config (you will have this already)
+# ============================================================================
+esphome:
+  name: waveshare-epaper
+  friendly_name: Waveshare E-Paper
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+api:
+  encryption:
+    key: "your_auto_generated_key_here"
+
+ota:
+  - platform: esphome
+    password: "your_auto_generated_password_here"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Waveshare Fallback Hotspot"
+    password: "auto_generated_password"
+
+captive_portal:
+
+# ============================================================================
+# ▼▼▼ START: HARDWARE SECTIONS - COPY FROM HERE ▼▼▼
+# ============================================================================
+# Copy everything between the ▼▼▼ START and ▲▲▲ END markers
+# Paste it in your ESPHome config AFTER the "captive_portal:" line
+# ============================================================================
+
+time:
+  - platform: homeassistant
+    id: ha_time
+
+# SPI Configuration for Waveshare ESP32 Driver Board
+spi:
+  clk_pin: GPIO13
+  mosi_pin: GPIO14
+
+# ============================================================================
+# ▲▲▲ END: HARDWARE SECTIONS - COPY UNTIL HERE ▲▲▲
+# ============================================================================
+
+
+# ============================================================================
+# STEP 6: Paste generated sections from Home Assistant editor
+# ============================================================================
+# After designing your dashboard:
+# 1. Click "Save Layout"
+# 2. Click "Generate Snippet"
+# 3. From the generated code, copy and paste the sections below:
+#
+#    ✓ globals:      (always generated)
+#    ✓ font:         (always generated)
+#    ✓ text_sensor:  (ONLY if you used sensor_text widgets)
+#    ✓ button:       (always generated - includes page navigation)
+#    ✓ script:       (always generated for page refresh)
+#    ✓ display:      (always generated - complete display configuration)
+#
+# Example of what to paste:
+#
+# globals:
+#   - id: display_page
+#     type: int
+#     restore_value: true
+#     initial_value: '0'
+#
+# font:
+#   - file: "fonts/materialdesignicons-webfont.ttf"
+#     id: mdi_48
+#     size: 48
+#     glyphs: ["\U000F0595"]
+#
+# text_sensor:
+#   - platform: homeassistant
+#     id: weather_forecast_home
+#     entity_id: weather.forecast_home
+#     internal: true
+#
+# script:
+#   - id: refresh_display
+#     mode: restart
+#     then:
+#       - component.update: epaper_display
+#
+# display:
+#   - platform: waveshare_epaper
+#     id: epaper_display
+#     cs_pin: 
+#       number: GPIO15
+#       ignore_strapping_warning: true
+#     dc_pin: GPIO27
+#     busy_pin: 
+#       number: GPIO25
+#       inverted: true
+#     reset_pin: GPIO26
+#     model: 7.50inV2  # CHANGE THIS to your display model!
+#     rotation: 0°
+#     update_interval: never
+#     full_update_every: 30
+#     lambda: |-
+#       int page = id(display_page);
+#       if (page == 0) {
+#         // Page 0 widgets rendered here
+#         it.print(10, 10, id(font1), "Hello from Waveshare!");
+#       }
+#
+# ============================================================================
+# ← PASTE YOUR GENERATED CODE HERE (globals, font, text_sensor, script, display)
+# ============================================================================

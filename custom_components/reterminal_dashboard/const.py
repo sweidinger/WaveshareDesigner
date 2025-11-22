@@ -1,22 +1,33 @@
 """
-Constants for the reTerminal Dashboard Designer integration.
+Constants for the Waveshare E-Paper Dashboard Designer integration.
 """
 
-DOMAIN = "reterminal_dashboard"
+DOMAIN = "waveshare_dashboard"
 
 # Storage
 STORAGE_KEY = DOMAIN
 STORAGE_VERSION = 1
 
-# Image / layout defaults for reTerminal E1001
-IMAGE_WIDTH = 800
-IMAGE_HEIGHT = 480
+# Display models and their dimensions
+DISPLAY_MODELS = {
+    "2.90in": {"width": 296, "height": 128, "model": "2.90in"},
+    "4.20in": {"width": 400, "height": 300, "model": "4.20in"},
+    "7.50in": {"width": 640, "height": 384, "model": "7.50in"},
+    "7.50inV2": {"width": 800, "height": 480, "model": "7.50inV2"},
+    "7.50in-bV3-bwr": {"width": 800, "height": 480, "model": "7.50in-bV3-bwr", "colors": ["black", "white", "red"]},
+}
+
+# Default display (7.5" V2 - most common)
+DEFAULT_DISPLAY_MODEL = "7.50inV2"
+IMAGE_WIDTH = 800  # Default, will be overridden by selected model
+IMAGE_HEIGHT = 480  # Default, will be overridden by selected model
 
 # Config keys
 CONF_DEVICE_ID = "device_id"
 CONF_DEVICE_NAME = "device_name"
 CONF_API_TOKEN = "api_token"
 CONF_PAGES = "pages"
+CONF_DISPLAY_MODEL = "display_model"
 
 # Service names
 SERVICE_SET_PAGE = "set_page"

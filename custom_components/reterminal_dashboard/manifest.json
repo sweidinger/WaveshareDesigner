@@ -1,10 +1,10 @@
 {
-  "domain": "reterminal_dashboard",
-  "name": "reTerminal Dashboard Designer",
-  "documentation": "https://github.com/koosoli/ReTerminalDesigner",
-  "issue_tracker": "https://github.com/koosoli/ReTerminalDesigner/issues",
-  "configuration_url": "/reterminal-dashboard",
-  "version": "0.4.1",
+  "domain": "waveshare_dashboard",
+  "name": "Waveshare E-Paper Dashboard Designer",
+  "documentation": "https://github.com/YOUR_USERNAME/WaveshareDesigner",
+  "issue_tracker": "https://github.com/YOUR_USERNAME/WaveshareDesigner/issues",
+  "configuration_url": "/waveshare-dashboard",
+  "version": "0.1.0",
   "after_dependencies": [
     "http",
     "frontend",
@@ -21,6 +21,6 @@
     "aiofiles==24.1.0"
   ],
   "loggers": [
-    "custom_components.reterminal_dashboard"
+    "custom_components.waveshare_dashboard"
   ]
 }
