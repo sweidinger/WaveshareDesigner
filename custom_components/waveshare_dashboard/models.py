@@ -227,6 +227,9 @@ class DeviceConfig:
     manual_refresh_only: bool = False
     no_refresh_start_hour: int | None = None
     no_refresh_end_hour: int | None = None
+    
+    # Display Hardware Settings
+    reset_duration: int | None = None  # Reset duration in milliseconds (default: 2ms)
 
     def ensure_pages(self, min_pages: int = DEFAULT_PAGES) -> None:
         """Ensure at least min_pages exist; add simple default pages if missing."""
@@ -270,7 +273,8 @@ class DeviceConfig:
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize device configuration for the HTTP API and storage."""
-        self.ensure_pages()
+        # NOTE: Do NOT call ensure_pages() here - it would add pages back during save!
+        # ensure_pages() should only be called when creating new devices.
         return {
             "device_id": self.device_id,
             "api_token": self.api_token,
@@ -289,6 +293,7 @@ class DeviceConfig:
             "manual_refresh_only": self.manual_refresh_only,
             "no_refresh_start_hour": self.no_refresh_start_hour,
             "no_refresh_end_hour": self.no_refresh_end_hour,
+            "reset_duration": self.reset_duration,
             "pages": [p.to_dict() for p in self.pages],
         }
 
@@ -338,6 +343,14 @@ class DeviceConfig:
             current_page = int(data.get("current_page", 0))
         except (TypeError, ValueError):
             current_page = 0
+        
+        reset_duration_raw = data.get("reset_duration")
+        reset_duration: Optional[int] = None
+        if reset_duration_raw is not None:
+            try:
+                reset_duration = int(reset_duration_raw)
+            except (TypeError, ValueError):
+                reset_duration = None
 
         cfg = DeviceConfig(
             device_id=str(data.get("device_id", "")),
@@ -356,8 +369,10 @@ class DeviceConfig:
             manual_refresh_only=manual_refresh_only,
             no_refresh_start_hour=no_refresh_start_hour,
             no_refresh_end_hour=no_refresh_end_hour,
+            reset_duration=reset_duration,
         )
-        cfg.ensure_pages()
+        # NOTE: Do NOT call ensure_pages() here - it would restore deleted pages!
+        # ensure_pages() should only be called when creating new devices.
         return cfg
 
 

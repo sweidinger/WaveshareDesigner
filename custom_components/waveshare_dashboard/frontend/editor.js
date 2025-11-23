@@ -11,9 +11,9 @@ function detectHaBackendBaseUrl() {
             loc.pathname.includes("/api/") ||
             loc.pathname.includes("/local/") ||
             loc.pathname.includes("/hacsfiles/") ||
-            loc.pathname.includes("/reterminal-dashboard")
+            loc.pathname.includes("/waveshare-dashboard")
         ) {
-            return `${loc.origin}/api/reterminal_dashboard`;
+            return `${loc.origin}/api/waveshare_dashboard`;
         }
         return null;
     } catch (e) {
@@ -63,6 +63,14 @@ async function fetchEntityStates() {
         }
         entityStatesCache = newCache;
         console.log(`[EntityStates] Cached ${Object.keys(newCache).length} entity states`);
+        console.log(`[EntityStates] Sample entities:`, Object.keys(newCache).slice(0, 10));
+        
+        // Check for specific entity
+        if (newCache['binary_sensor.balkontur_window']) {
+            console.log(`[EntityStates] ✓ binary_sensor.balkontur_window found: ${newCache['binary_sensor.balkontur_window']}`);
+        } else {
+            console.log(`[EntityStates] ✗ binary_sensor.balkontur_window NOT found in cache`);
+        }
 
         if (typeof renderCanvas === 'function') {
             renderCanvas();
@@ -290,7 +298,8 @@ function parseSnippetYamlOffline(yamlText) {
                 } else if (p.type === "battery_icon") {
                     widget.props = {
                         size: parseInt(p.size || 32, 10),
-                        color: p.color || "black"
+                        color: p.color || "black",
+                        percentage_font: p.pct_font || "font_small"
                     };
                 } else if (p.type === "weather_icon") {
                     widget.props = {
@@ -513,7 +522,7 @@ function applyImportedLayout(layout) {
         ];
     }
     settings = layout.settings || settings || {};
-    deviceName = layout.name || "reTerminal E1001";
+    deviceName = layout.name || "Waveshare Display";
     // Ensure defaults for new settings
     if (settings.sleep_enabled === undefined) settings.sleep_enabled = false;
     if (settings.sleep_start_hour === undefined) settings.sleep_start_hour = 0;
@@ -648,10 +657,11 @@ const deepSleepIntervalRow = document.getElementById('deep-sleep-interval-row');
 const settingManualRefresh = document.getElementById('setting-manual-refresh');
 const settingNoRefreshStart = document.getElementById('setting-no-refresh-start');
 const settingNoRefreshEnd = document.getElementById('setting-no-refresh-end');
+const settingResetDuration = document.getElementById('setting-reset-duration');
 
 
 function openDeviceSettings() {
-    deviceNameInput.value = deviceName || "reTerminal E1001";
+    deviceNameInput.value = deviceName || "Waveshare Display";
     deviceOrientationInput.value = settings.orientation || "landscape";
     deviceDarkModeInput.checked = !!settings.dark_mode;
 
@@ -667,6 +677,11 @@ function openDeviceSettings() {
     deepSleepIntervalRow.style.display = settingDeepSleepEnabled.checked ? 'flex' : 'none';
 
     settingManualRefresh.checked = !!settings.manual_refresh_only;
+    
+    // Reset duration (optional, leave empty if not set)
+    if (settingResetDuration) {
+        settingResetDuration.value = settings.reset_duration ?? '';
+    }
 
     deviceSettingsModal.classList.remove("hidden");
     deviceSettingsModal.style.display = 'flex';
@@ -702,10 +717,57 @@ deviceSettingsSave.addEventListener('click', async () => {
     settings.deep_sleep_interval = parseInt(settingDeepSleepInterval.value) || 600;
 
     settings.manual_refresh_only = settingManualRefresh.checked;
+    
+    // Reset duration (optional)
+    const resetDurationVal = settingResetDuration ? settingResetDuration.value.trim() : '';
+    if (resetDurationVal === '') {
+        settings.reset_duration = null;
+    } else {
+        const num = parseInt(resetDurationVal, 10);
+        settings.reset_duration = (num >= 1) ? num : null;
+    }
 
     applyOrientation(settings.orientation);
     renderCanvas();
     scheduleSnippetUpdate();
+    
+    // Update device name display on the main screen
+    updateDeviceNameDisplay();
+
+    // Automatically save to backend
+    try {
+        const body = getPagesPayload();
+        // Include device settings in the payload
+        body.name = deviceName;
+        body.orientation = settings.orientation;
+        body.dark_mode = settings.dark_mode;
+        body.sleep_enabled = settings.sleep_enabled;
+        body.sleep_start_hour = settings.sleep_start_hour;
+        body.sleep_end_hour = settings.sleep_end_hour;
+        body.deep_sleep_enabled = settings.deep_sleep_enabled;
+        body.deep_sleep_interval = settings.deep_sleep_interval;
+        body.manual_refresh_only = settings.manual_refresh_only;
+        body.no_refresh_start_hour = settings.no_refresh_start_hour;
+        body.no_refresh_end_hour = settings.no_refresh_end_hour;
+        body.reset_duration = settings.reset_duration;
+        
+        console.log("Saving device settings:", body);
+        const resp = await fetch("/api/waveshare_dashboard/layout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+        if (resp.ok) {
+            sidebarStatus.textContent = "Device settings saved.";
+            console.log("Device settings saved successfully");
+        } else {
+            sidebarStatus.textContent = "Failed to save device settings.";
+            console.error("Save failed with status:", resp.status);
+        }
+    } catch (err) {
+        console.error("Failed to save device settings:", err);
+        sidebarStatus.textContent = "Failed to save device settings (network error).";
+    }
 
     deviceSettingsModal.classList.add("hidden");
     deviceSettingsModal.style.display = 'none';
@@ -796,7 +858,7 @@ let settings = {
 let currentPageIndex = 0;
 let widgetsById = new Map();
 let selectedWidgetId = null;
-let deviceName = "reTerminal E1001";
+let deviceName = "Waveshare Display";
 let currentPageSettingsTarget = null;
 
 function initDefaultLayout() {
@@ -1347,7 +1409,7 @@ function renderCanvas() {
                     el.appendChild(overlay);
                 };
 
-                const proxyUrl = "/api/reterminal_dashboard/image_proxy?path=" + encodeURIComponent(path);
+                const proxyUrl = "/api/waveshare_dashboard/image_proxy?path=" + encodeURIComponent(path);
                 img.src = proxyUrl;
                 el.appendChild(img);
             } else {
@@ -1531,7 +1593,10 @@ function renderCanvas() {
             el.textContent = ch;
 
             const pctLabel = document.createElement("div");
-            pctLabel.style.fontSize = "10px";
+            // Map font names to approximate sizes for preview
+            const pctFont = props.percentage_font || "font_small";
+            const pctFontSize = pctFont === "font_header" ? 24 : pctFont === "font_normal" ? 22 : 19;
+            pctLabel.style.fontSize = pctFontSize + "px";
             pctLabel.style.marginTop = "2px";
             pctLabel.textContent = Math.round(batteryLevel) + "%";
             el.appendChild(pctLabel);
@@ -3271,6 +3336,17 @@ function renderPropertiesPanel() {
             scheduleSnippetUpdate();
         });
 
+        addSelect(
+            "Percentage font",
+            widget.props.percentage_font || "font_small",
+            ["font_small", "font_normal", "font_header"],
+            (val) => {
+                widget.props.percentage_font = val;
+                renderCanvas();
+                scheduleSnippetUpdate();
+            }
+        );
+
         addSelect("Color", widget.props.color || "black", ["black", "white", "gray"], (val) => {
             widget.props.color = val;
             renderCanvas();
@@ -3433,6 +3509,12 @@ function renderPropertiesPanel() {
 
             addLabeledInput("Precision (decimals)", "number", widget.props.precision != null ? widget.props.precision : -1, (v) => {
                 widget.props.precision = parseInt(v || "-1", 10);
+                renderCanvas();
+                scheduleSnippetUpdate();
+            });
+
+            addLabeledInput("Unit (e.g. km, °C, %)", "text", widget.props.unit || "", (v) => {
+                widget.props.unit = v;
                 renderCanvas();
                 scheduleSnippetUpdate();
             });
@@ -3782,7 +3864,10 @@ function renderPropertiesPanel() {
     condEntityInput.style.flex = "1";
     condEntityInput.placeholder = "e.g., binary_sensor.printer_printing";
     condEntityInput.addEventListener("input", () => {
-        widget.condition_entity = condEntityInput.value || null;
+        const val = condEntityInput.value.trim();
+        console.log(`[CondEntity] Input event fired. Widget ID: ${widget.id}, Value typed: "${val}", Widget before: ${widget.condition_entity}`);
+        widget.condition_entity = val || null;
+        console.log(`[CondEntity] Widget after assignment: ${widget.condition_entity}`);
         scheduleSnippetUpdate();
     });
 
@@ -3815,13 +3900,18 @@ function renderPropertiesPanel() {
         widget.condition_operator || "==",
         ["==", "!=", ">", "<", ">=", "<="],
         (val) => {
+            console.log(`[CondOperator] Widget ID: ${widget.id}, Operator selected: "${val}"`);
             widget.condition_operator = val;
+            console.log(`[CondOperator] Widget after assignment: ${widget.condition_operator}`);
             scheduleSnippetUpdate();
         }
     );
 
     addLabeledInput("Expected value", "text", widget.condition_state || "", (v) => {
-        widget.condition_state = v || null;
+        const val = (v || "").trim();
+        console.log(`[CondState] Widget ID: ${widget.id}, Expected value typed: "${val}", Widget before: ${widget.condition_state}`);
+        widget.condition_state = val || null;
+        console.log(`[CondState] Widget after assignment: ${widget.condition_state}`);
         scheduleSnippetUpdate();
     });
 
@@ -3901,12 +3991,17 @@ function deleteWidget(widgetId) {
 }
 
 function deletePage(pageIndex) {
+    console.log("=== DELETE PAGE CALLED ===");
+    console.log("Deleting page index:", pageIndex);
+    console.log("Pages before delete:", pages.length);
+    
     if (pages.length <= 1) {
         alert("Cannot delete the last page. At least one page is required.");
         return;
     }
 
     pages.splice(pageIndex, 1);
+    console.log("Pages after delete:", pages.length);
 
     if (currentPageIndex >= pages.length) {
         currentPageIndex = pages.length - 1;
@@ -3990,7 +4085,7 @@ function onMouseUp() {
 
 function getPagesPayload() {
     return {
-        device_id: "reterminal_e1001",
+        device_id: "waveshare_display",
         name: deviceName,
         current_page: currentPageIndex,
         orientation: settings.orientation,
@@ -4034,7 +4129,7 @@ function generateSnippetLocally() {
 
     if (iconCodes.size > 0) {
         lines.push("font:");
-        lines.push("  # Icon fonts used by MDI icon widgets generated from the reTerminal editor.");
+        lines.push("  # Icon fonts used by MDI icon widgets generated from the Waveshare Designer.");
         lines.push("  - file: 'fonts/materialdesignicons-webfont.ttf'");
         lines.push("    id: font_mdi_large");
         lines.push("    size: 200");
@@ -4196,13 +4291,13 @@ function generateSnippetLocally() {
     lines.push("  - platform: waveshare_epaper");
     lines.push("    id: epaper_display");
     lines.push("    model: 7.50inv2");
-    lines.push("    cs_pin: GPIO10");
-    lines.push("    dc_pin: GPIO11");
-    lines.push("    reset_pin:");
-    lines.push("      number: GPIO12");
-    lines.push("      inverted: false");
+    lines.push("    cs_pin:");
+    lines.push("      number: GPIO15");
+    lines.push("      ignore_strapping_warning: true");
+    lines.push("    dc_pin: GPIO27");
+    lines.push("    reset_pin: GPIO26");
     lines.push("    busy_pin:");
-    lines.push("      number: GPIO13");
+    lines.push("      number: GPIO25");
     lines.push("      inverted: true");
     lines.push("    update_interval: 0s");
     lines.push("    lambda: |-");
@@ -4213,6 +4308,7 @@ function generateSnippetLocally() {
         if (!page.widgets || !page.widgets.length) {
             lines.push("        // No widgets on this page.");
         } else {
+            let nowVarCounter = 0; // Track datetime widget counter per page
             for (const w of page.widgets) {
                 const t = (w.type || "").toLowerCase();
                 const p = w.props || {};
@@ -4479,17 +4575,21 @@ function generateSnippetLocally() {
                     const colorProp = p.color || "black";
                     const color = colorProp === "white" ? "COLOR_OFF" : "COLOR_ON";
 
+                    // Use unique variable name for each datetime widget
+                    nowVarCounter++;
+                    const nowVar = nowVarCounter === 1 ? "now" : `now_${nowVarCounter}`;
+
                     lines.push(`        // widget:datetime id:${w.id} type:datetime x:${w.x} y:${w.y} w:${w.width} h:${w.height} format:${format} time_font:${timeSize} date_font:${dateSize} color:${colorProp}`);
                     lines.push(`        // Note: Requires 'time' component in ESPHome`);
-                    lines.push(`        auto now = id(homeassistant_time).now();`);
+                    lines.push(`        auto ${nowVar} = id(homeassistant_time).now();`);
 
                     if (format === "time_only") {
-                        lines.push(`        it.strftime(${w.x}, ${w.y}, id(font_large), ${color}, TextAlign::TOP_LEFT, "%H:%M", now);`);
+                        lines.push(`        it.strftime(${w.x}, ${w.y}, id(font_large), ${color}, TextAlign::TOP_LEFT, "%H:%M", ${nowVar});`);
                     } else if (format === "date_only") {
-                        lines.push(`        it.strftime(${w.x}, ${w.y}, id(font_medium), ${color}, TextAlign::TOP_LEFT, "%a, %b %d", now);`);
+                        lines.push(`        it.strftime(${w.x}, ${w.y}, id(font_medium), ${color}, TextAlign::TOP_LEFT, "%a, %b %d", ${nowVar});`);
                     } else {
-                        lines.push(`        it.strftime(${w.x}, ${w.y}, id(font_large), ${color}, TextAlign::TOP_LEFT, "%H:%M", now);`);
-                        lines.push(`        it.strftime(${w.x}, ${w.y} + ${timeSize}, id(font_medium), ${color}, TextAlign::TOP_LEFT, "%a, %b %d", now);`);
+                        lines.push(`        it.strftime(${w.x}, ${w.y}, id(font_large), ${color}, TextAlign::TOP_LEFT, "%H:%M", ${nowVar});`);
+                        lines.push(`        it.strftime(${w.x}, ${w.y} + ${timeSize}, id(font_medium), ${color}, TextAlign::TOP_LEFT, "%a, %b %d", ${nowVar});`);
                     }
 
                 } else if (t === "image") {
@@ -4539,44 +4639,61 @@ function generateSnippetLocally() {
 }
 
 async function updateSnippet(preferBackend = true) {
-    if (!snippetBox) return;
+    const snippetBox = document.getElementById("snippetBox");
+    if (!snippetBox) {
+        console.error("snippetBox element not found!");
+        return;
+    }
 
+    console.log("[updateSnippet] Starting, preferBackend:", preferBackend);
     const local = generateSnippetLocally();
+    console.log("[updateSnippet] Local snippet length:", local.length);
 
     if (!preferBackend) {
         snippetBox.value = local + "\n# Local preview (no backend).";
+        console.log("[updateSnippet] Set local snippet, length:", snippetBox.value.length);
         return;
     }
 
     try {
         // First, save the current layout to backend so it knows about the changes
         const body = getPagesPayload();
-        const saveResp = await fetch("/api/reterminal_dashboard/layout", {
+        console.log("[updateSnippet] Saving layout to backend...");
+        const saveResp = await fetch("/api/waveshare_dashboard/layout", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body)
         });
 
         if (!saveResp.ok) {
+            console.error("[updateSnippet] Layout save failed:", saveResp.status);
             throw new Error("Failed to save layout to backend");
         }
+        console.log("[updateSnippet] Layout saved successfully");
 
         // Now fetch the generated snippet from backend
-        const resp = await fetch("/api/reterminal_dashboard/snippet", { method: "GET" });
+        console.log("[updateSnippet] Fetching snippet from backend...");
+        const resp = await fetch("/api/waveshare_dashboard/snippet", { method: "GET" });
         if (!resp.ok) {
+            console.error("[updateSnippet] Snippet fetch failed:", resp.status);
             throw new Error("HTTP " + resp.status);
         }
         const text = await resp.text();
+        console.log("[updateSnippet] Backend snippet length:", text.length);
+        console.log("[updateSnippet] Backend snippet first 200 chars:", text.substring(0, 200));
         snippetBox.value = (text && text.trim()) ? text : "# Empty snippet";
+        console.log("[updateSnippet] Snippet box value set, length:", snippetBox.value.length);
     } catch (err) {
-        console.warn("Backend error, using local generation:", err);
+        console.warn("[updateSnippet] Backend error, using local generation:", err);
         snippetBox.value =
             local + "\n# Backend unreachable, showing local preview only.";
+        console.log("[updateSnippet] Fallback snippet set, length:", snippetBox.value.length);
     }
 }
 
 let snippetDebounceTimer = null;
 function scheduleSnippetUpdate() {
+    const snippetBox = document.getElementById("snippetBox");
     if (!snippetBox) return;
     if (snippetDebounceTimer) clearTimeout(snippetDebounceTimer);
     snippetDebounceTimer = setTimeout(() => {
@@ -4848,11 +4965,61 @@ if (clearAllBtn) {
 }
 
 saveLayoutBtn.onclick = async () => {
+    console.log("=== SAVE LAYOUT CLICKED ===");
+    console.log("Current pages array:", pages);
+    console.log("Pages count:", pages.length);
+    pages.forEach((p, i) => {
+        console.log(`  Page ${i}: ${p.name} (${p.id}) - ${p.widgets?.length || 0} widgets`);
+    });
+    
+    // Debug: inspect widget w_1763878212220_9699 in both maps
+    console.log("\n[DEBUG] Inspecting widget w_1763878212220_9699:");
+    const testWidgetFromMap = widgetsById.get("w_1763878212220_9699");
+    if (testWidgetFromMap) {
+        console.log("  From widgetsById Map:", {
+            id: testWidgetFromMap.id,
+            condition_entity: testWidgetFromMap.condition_entity,
+            condition_operator: testWidgetFromMap.condition_operator,
+            condition_state: testWidgetFromMap.condition_state
+        });
+    }
+    
+    const testWidgetFromPages = pages[0]?.widgets?.find(w => w.id === "w_1763878212220_9699");
+    if (testWidgetFromPages) {
+        console.log("  From pages[0].widgets:", {
+            id: testWidgetFromPages.id,
+            condition_entity: testWidgetFromPages.condition_entity,
+            condition_operator: testWidgetFromPages.condition_operator,
+            condition_state: testWidgetFromPages.condition_state
+        });
+    }
+    
+    console.log("  Are they the same object?", testWidgetFromMap === testWidgetFromPages);
+    console.log("\n");
+    
     const body = getPagesPayload();
-    console.log("Saving layout:", body);
-    console.log("Pages:", body.pages?.length, "widgets:", body.pages?.reduce((sum, p) => sum + (p.widgets?.length || 0), 0));
+    
+    // Count widgets with conditions
+    let widgetsWithConditions = 0;
+    body.pages?.forEach(p => {
+        p.widgets?.forEach(w => {
+            if (w.condition_entity || w.condition_operator || w.condition_state) {
+                widgetsWithConditions++;
+                console.log(`  Widget ${w.id} has conditions:`, {
+                    entity: w.condition_entity,
+                    operator: w.condition_operator,
+                    state: w.condition_state
+                });
+            }
+        });
+    });
+    console.log(`\nTotal widgets with conditions in payload: ${widgetsWithConditions}\n`);
+    
+    console.log("Payload being sent:", JSON.stringify(body, null, 2));
+    console.log("Payload pages count:", body.pages?.length);
+    
     try {
-        const resp = await fetch("/api/reterminal_dashboard/layout", {
+        const resp = await fetch("/api/waveshare_dashboard/layout", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body)
@@ -4865,7 +5032,11 @@ saveLayoutBtn.onclick = async () => {
             return;
         }
         const result = await resp.json();
-        console.log("Save successful:", result);
+        console.log("Backend returned:", JSON.stringify(result, null, 2));
+        console.log("Backend returned pages count:", result.pages?.length);
+        result.pages?.forEach((p, i) => {
+            console.log(`  Backend page ${i}: ${p.name} (${p.id}) - ${p.widgets?.length || 0} widgets`);
+        });
         sidebarStatus.textContent = "Layout saved.";
         scheduleSnippetUpdate();
     } catch (err) {
@@ -4876,7 +5047,15 @@ saveLayoutBtn.onclick = async () => {
 
 if (generateSnippetBtn) {
     generateSnippetBtn.addEventListener("click", async () => {
+        console.log("=== GENERATE SNIPPET CLICKED ===");
+        console.log("Current pages:", pages.length);
+        pages.forEach((p, i) => {
+            console.log(`  Page ${i}: ${p.widgets?.length || 0} widgets`);
+        });
         await updateSnippet(true);
+        const snippetBox = document.getElementById("snippetBox");
+        console.log("Snippet box value length:", snippetBox?.value?.length);
+        console.log("Snippet box first 200 chars:", snippetBox?.value?.substring(0, 200));
     });
 }
 
@@ -4975,14 +5154,23 @@ if (pageSettingsSave) {
 // Device Settings Modal Functions
 // ============================================================================
 
-
+function updateDeviceNameDisplay() {
+    const deviceNameDisplay = document.getElementById('deviceNameDisplay');
+    if (deviceNameDisplay) {
+        deviceNameDisplay.textContent = deviceName || "Waveshare Display";
+    }
+}
 
 async function loadLayoutFromBackend() {
     console.log("Loading layout from backend...");
-    const apiBase = hasHaBackend() ? HA_API_BASE : "/api/reterminal_dashboard";
+    const apiBase = hasHaBackend() ? HA_API_BASE : "/api/waveshare_dashboard";
 
     try {
-        const resp = await fetch(`${apiBase}/layout`);
+        // Add cache-busting to prevent stale data
+        const resp = await fetch(`${apiBase}/layout?_=${Date.now()}`, {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' }
+        });
         console.log("Load response status:", resp.status, resp.ok);
         if (!resp.ok) {
             console.warn("Load failed, initializing default layout");
@@ -4992,9 +5180,25 @@ async function loadLayoutFromBackend() {
         const data = await resp.json();
         console.log("Loaded layout:", data);
         console.log("Pages:", data.pages?.length, "widgets:", data.pages?.reduce((sum, p) => sum + (p.widgets?.length || 0), 0));
+        
+        // Load device settings from backend
+        deviceName = data.name || "Waveshare Display";
+        settings.orientation = data.orientation || "landscape";
+        settings.dark_mode = !!data.dark_mode;
+        settings.sleep_enabled = !!data.sleep_enabled;
+        settings.sleep_start_hour = data.sleep_start_hour ?? 0;
+        settings.sleep_end_hour = data.sleep_end_hour ?? 5;
+        settings.deep_sleep_enabled = !!data.deep_sleep_enabled;
+        settings.deep_sleep_interval = data.deep_sleep_interval ?? 600;
+        settings.manual_refresh_only = !!data.manual_refresh_only;
+        settings.no_refresh_start_hour = data.no_refresh_start_hour ?? null;
+        settings.no_refresh_end_hour = data.no_refresh_end_hour ?? null;
+        
         pages = data.pages || [];
         currentPageIndex = data.current_page || 0;
-        if (!pages.length) {
+        // Trust the backend data, even if pages is empty (user may have deleted all pages)
+        // Only initialize default layout if this is truly the first load (backend returned null pages)
+        if (data.pages === null || data.pages === undefined) {
             console.warn("No pages in loaded layout, initializing default");
             initDefaultLayout();
             return;
@@ -5003,7 +5207,10 @@ async function loadLayoutFromBackend() {
         renderPagesSidebar();
         renderCanvas();
         renderPropertiesPanel();
+        updateDeviceNameDisplay();
         console.log("Layout loaded successfully");
+        console.log("Device name:", deviceName);
+        console.log("Device settings:", settings);
     } catch (err) {
         console.error("Load error:", err);
         initDefaultLayout();

@@ -149,9 +149,9 @@ def yaml_to_layout(snippet: str) -> DeviceConfig:
         raise ValueError("no_pages_found")
 
     device = DeviceConfig(
-        device_id="reterminal_e1001",
+        device_id="waveshare_display",
         api_token="",
-        name="reTerminal E1001",
+        name="Waveshare Display",
         pages=[],
         current_page=0,
     )

@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>reTerminal Dashboard Designer · YAML Snippet Editor</title>
+  <title>Waveshare E-Paper Dashboard Designer · YAML Snippet Editor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- Google Fonts for live preview -->
@@ -20,7 +20,7 @@
 <body>
   <aside class="sidebar">
     <div>
-      <h1><span class="logo-dot"></span> reTerminal Designer</h1>
+      <h1><span class="logo-dot"></span> Waveshare Designer</h1>
       <div class="pill">
         <span></span>
         <div>ESPHome YAML snippet · Local + HA backend</div>
@@ -31,8 +31,8 @@
       <div class="sidebar-section-label">Target device</div>
       <div class="select" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
         <div>
-          <div style="font-size:11px;color:var(--text);">reTerminal E1001</div>
-          <div style="font-size:9px;color:var(--muted);">ESP32-S3 · 800x480 epaper</div>
+          <div id="deviceNameDisplay" style="font-size:11px;color:var(--text);">Waveshare Display</div>
+          <div style="font-size:9px;color:var(--muted);">ESP32 · 800x480 epaper</div>
         </div>
         <div class="badge">MVP</div>
       </div>
@@ -126,7 +126,7 @@
       </div>
       <div class="main-header-actions">
         <div class="main-header-pill">
-          Canvas: <span id="canvasSizeLabel">800 x 480</span> px · reTerminal E-Ink
+          Canvas: <span id="canvasSizeLabel">800 x 480</span> px · Waveshare E-Paper
         </div>
         <select id="orientationSelect" class="select" style="width:auto;padding:3px 6px;font-size:9px;"
           title="Canvas orientation">
@@ -142,7 +142,7 @@
           <section class="canvas-area">
             <div class="canvas-toolbar">
               <span>Page: <strong id="currentPageName">Loading...</strong></span>
-              <span>Place widgets to define what the reTerminal shows.</span>
+              <span>Place widgets to define what your display shows.</span>
             </div>
             <div id="canvas" class="canvas">
               <div class="canvas-grid"></div>
@@ -233,7 +233,7 @@
       <div class="modal-body">
         <div class="form-group">
           <label>Device Name</label>
-          <input type="text" id="deviceName" class="prop-input" value="reTerminal" />
+          <input type="text" id="deviceName" class="prop-input" value="Waveshare Display" />
         </div>
 
         <div class="form-group">
@@ -280,6 +280,17 @@
         <p class="hint" style="margin-top:4px;">
           If enabled, the display will only update when you press a physical button or trigger it via Home Assistant.
         </p>
+      </div>
+
+      <div class="form-group" style="border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+        <label>Display Hardware Settings</label>
+        <div class="row" style="margin-top:8px;">
+          <div class="col">
+            <label class="sub-label">Reset Duration (milliseconds)</label>
+            <input type="number" id="setting-reset-duration" min="1" max="100" placeholder="2 (default)">
+            <p class="hint">Leave empty for default (2ms). Only change if your display requires different reset timing.</p>
+          </div>
+        </div>
       </div>
 
       <div class="form-group" style="border-top: 1px solid var(--border-subtle); padding-top: 12px;">

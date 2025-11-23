@@ -69,14 +69,21 @@ class DashboardStorage:
         return device
 
     async def async_get_default_device(self) -> DeviceConfig:
-        """Return the default device/layout (reterminal_e1001), creating if necessary."""
+        """Return the default device/layout (waveshare_display), creating if necessary."""
         # Ensure state is loaded
         if self._state is None:
             await self.async_load()
-        device = self.state.devices.get("reterminal_e1001")
+        device = self.state.devices.get("waveshare_display")
         if device is None:
-            device = self.state.get_or_create_device("reterminal_e1001", api_token="")
+            # Create new device with default 3 pages (only for brand new devices)
+            device = DeviceConfig(
+                device_id="waveshare_display",
+                api_token="",
+            )
+            device.ensure_pages()  # Only called for NEW devices
+            self.state.devices[device.device_id] = device
             await self.async_save()
+        # If device exists, return it as-is without calling ensure_pages()
         return device
 
     def get_device(self, device_id: str) -> Optional[DeviceConfig]:
@@ -172,7 +179,7 @@ class DashboardStorage:
             _LOGGER.error("%s: Failed to parse layout for %s: %s", DOMAIN, device_id, exc)
             return None
 
-        device.ensure_pages()
+        # NOTE: Do NOT call ensure_pages() here - it would restore deleted pages!
         self.state.devices[device.device_id] = device
         await self.async_save()
         return device
@@ -190,19 +197,29 @@ class DashboardStorage:
             await self.async_load()
 
         # Existing default device (if any)
-        existing = self.get_device("reterminal_e1001")
+        existing = self.get_device("waveshare_display")
+        
+        _LOGGER.info("=== STORAGE: async_update_layout_default ===")
+        _LOGGER.info("Raw layout pages count: %d", len(raw_layout.get("pages", [])))
+        if existing:
+            _LOGGER.info("Existing device pages count: %d", len(existing.pages))
+        else:
+            _LOGGER.info("No existing device found")
 
         # Start from existing values when available
+        # IMPORTANT: Use 'if "pages" in raw_layout' instead of 'or' to avoid treating [] as falsy
         base_payload: Dict[str, Any] = {
-            "device_id": (raw_layout.get("device_id") or (existing.device_id if existing else "reterminal_e1001")),
+            "device_id": (raw_layout.get("device_id") or (existing.device_id if existing else "waveshare_display")),
             "api_token": raw_layout.get("api_token") or (existing.api_token if existing else ""),
             "name": raw_layout.get("name") or (existing.name if existing else "reTerminal E1001"),
-            "pages": raw_layout.get("pages") or (existing.pages if existing else []),
+            "pages": raw_layout.get("pages") if "pages" in raw_layout else (existing.pages if existing else []),
             "current_page": raw_layout.get("current_page") if "current_page" in raw_layout else (existing.current_page if existing else 0),
             # Pass through new root fields if present; from_dict will sanitize.
             "orientation": raw_layout.get("orientation", getattr(existing, "orientation", "landscape") if existing else "landscape"),
             "dark_mode": raw_layout.get("dark_mode", getattr(existing, "dark_mode", False) if existing else False),
         }
+        
+        _LOGGER.info("Base payload pages count: %d", len(base_payload.get("pages", [])))
 
         try:
             device = DeviceConfig.from_dict(base_payload)
@@ -217,9 +234,11 @@ class DashboardStorage:
                 current_page=0,
             )
 
-        device.ensure_pages()
+        # NOTE: Do NOT call ensure_pages() here - it would restore deleted pages!
+        _LOGGER.info("Device after from_dict pages count: %d", len(device.pages))
         self.state.devices[device.device_id] = device
         await self.async_save()
+        _LOGGER.info("Device saved with pages count: %d", len(device.pages))
         return device
 
     async def async_update_layout_from_device(self, device: DeviceConfig) -> DeviceConfig:
@@ -234,13 +253,14 @@ class DashboardStorage:
             await self.async_load()
 
         if not device.device_id:
-            device.device_id = "reterminal_e1001"
+            device.device_id = "waveshare_display"
 
         existing = self.get_device(device.device_id)
         if existing and not device.api_token:
             device.api_token = existing.api_token
 
-        device.ensure_pages()
+        # NOTE: ensure_pages() should be called BEFORE importing, not after
+        # to avoid restoring pages that were intentionally removed in the import
         self.state.devices[device.device_id] = device
         await self.async_save()
         return device

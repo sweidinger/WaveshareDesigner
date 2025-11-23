@@ -21,7 +21,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN, STORAGE_KEY, STORAGE_VERSION
 from .http_api import async_register_http_views
-from .panel import ReTerminalDashboardPanelView, ReTerminalDashboardFontView
+from .panel import WaveshareDashboardPanelView, WaveshareDashboardFontView
 from .services import async_register_services, async_unregister_services
 from .storage import DashboardStorage
 from .models import DashboardState, DeviceConfig, PageConfig, WidgetConfig
@@ -127,7 +127,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             pages=pages,
             current_page=int(raw.get("current_page", 0)),
         )
-        device.ensure_pages()
+        # NOTE: Do NOT call ensure_pages() for YAML-loaded devices
+        # Users may intentionally configure fewer than 3 pages
         state.devices[device_id] = device
         _LOGGER.debug("%s: Loaded YAML device '%s' with %d pages", DOMAIN, device_id, len(device.pages))
 
@@ -160,18 +161,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("%s: HTTP API views registered", DOMAIN)
 
     # Register the embedded editor panel backend view
-    hass.http.register_view(ReTerminalDashboardPanelView(hass))
-    _LOGGER.info("%s: Panel view registered at /reterminal-dashboard", DOMAIN)
+    hass.http.register_view(WaveshareDashboardPanelView(hass))
+    _LOGGER.info("%s: Panel view registered at /waveshare-dashboard", DOMAIN)
 
     # Register the font view for MDI icons
-    hass.http.register_view(ReTerminalDashboardFontView(hass))
-    _LOGGER.info("%s: Font view registered at /reterminal-dashboard/materialdesignicons-webfont.ttf", DOMAIN)
+    hass.http.register_view(WaveshareDashboardFontView(hass))
+    _LOGGER.info("%s: Font view registered at /waveshare-dashboard/materialdesignicons-webfont.ttf", DOMAIN)
 
     # Register static view for frontend assets (CSS/JS)
     # This manually serves editor.css and editor.js to avoid issues with register_static_path
-    from .panel import ReTerminalDashboardStaticView
-    hass.http.register_view(ReTerminalDashboardStaticView(hass))
-    _LOGGER.info("%s: Static view registered at /reterminal-dashboard/static/{filename}", DOMAIN)
+    from .panel import WaveshareDashboardStaticView
+    hass.http.register_view(WaveshareDashboardStaticView(hass))
+    _LOGGER.info("%s: Static view registered at /waveshare-dashboard/static/{filename}", DOMAIN)
 
     # Register the sidebar panel
     try:
@@ -179,10 +180,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         frontend.async_register_built_in_panel(
             hass,
             component_name="iframe",  # Use iframe panel type to load our view
-            sidebar_title="reTerminal",
+            sidebar_title="Waveshare",
             sidebar_icon="mdi:tablet-dashboard",
-            frontend_url_path="reterminal-dashboard",
-            config={"url": "/reterminal-dashboard"},
+            frontend_url_path="waveshare-dashboard",
+            config={"url": "/waveshare-dashboard"},
             require_admin=True,
         )
         _LOGGER.info("%s: Sidebar panel registered", DOMAIN)

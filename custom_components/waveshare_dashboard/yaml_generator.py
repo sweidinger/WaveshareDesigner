@@ -51,6 +51,7 @@ SNIPPET_HEADER = """# ==========================================================
 #    - Includes: esphome, esp32, wifi, api, ota, logger
 #    - Uses esp32dev board (Waveshare ESP32 Driver Board)
 #    - Includes SPI configuration (see waveshare_esp32_template.yaml)
+#    - Includes time component with id: ha_time (e.g., homeassistant time)
 # 2. Paste this snippet BELOW your existing base config.
 # 3. Do NOT duplicate esphome:, wifi:, api:, ota:, logger:, spi: sections.
 # 4. If you already define conflicting ids (e.g. epaper_display), adjust accordingly.
@@ -78,7 +79,8 @@ def generate_snippet(device: DeviceConfig) -> str:
     - Single device_type: reTerminal E1001.
     - IMAGE_WIDTH/IMAGE_HEIGHT match the target display (800x480).
     """
-    device.ensure_pages()
+    # NOTE: Do NOT call ensure_pages() here - it would restore deleted pages!
+    # The device should already have valid pages from storage.
 
     parts: List[str] = [SNIPPET_HEADER.rstrip(), ""]
 
@@ -87,11 +89,12 @@ def generate_snippet(device: DeviceConfig) -> str:
     # We only generate: globals, fonts, text_sensor, button, script, display
     parts.append(_generate_globals())
     parts.append(_generate_fonts(device))  # Pass device to collect icon glyphs
-    parts.append(_generate_text_sensors(device))  # Only text_sensors for HA entities
+    parts.append(_generate_text_sensors(device))  # text_sensors and sensors for HA entities
     parts.append(_generate_online_images(device))
     parts.append(_generate_deep_sleep(device))
     parts.append(_generate_navigation_buttons(device))
     parts.append(_generate_scripts(device))
+    parts.append(_generate_time_trigger(device))  # time-based refresh check
     parts.append(_generate_graphs(device))
     parts.append(_generate_display_block(device))
 
@@ -124,6 +127,18 @@ def _generate_globals() -> str:
     type: int
     restore_value: no
     initial_value: '900'
+  
+  # Track if sensor data has been updated
+  - id: data_updated
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  
+  # Track total display refreshes
+  - id: recorded_display_refresh
+    type: int
+    restore_value: yes
+    initial_value: '0'
 """
 
 
@@ -250,24 +265,42 @@ def _generate_fonts(device: DeviceConfig) -> str:
                         "transparency": transparency
                     }
     
+    # Common glyphs including German/European characters as JSON array (safer for YAML)
+    # Note: Backslash omitted to avoid YAML escaping issues
+    glyphs_list = [' ', '!', '"', '#', '%', '&', "'", '(', ')', '*', '+', ',', '-', '.', '/', 
+                   '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 
+                   ':', ';', '<', '=', '>', '?', '@',
+                   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 
+                   'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+                   '[', ']', '^', '_', '`',
+                   'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+                   'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+                   '{', '|', '}', '~',
+                   '°', 'Ä', 'Ö', 'Ü', 'ä', 'ö', 'ü', 'ß', '€', '£', '¥']
+    common_glyphs = str(glyphs_list)
+    
     # Base fonts - use selected font family for all standard sizes
     font_lines = [
         "font:",
         f"  - file: \"gfonts://{selected_font_family}@400\"",
         "    id: font_axis",
         "    size: 10",
+        f"    glyphs: {common_glyphs}",
         "",
         f"  - file: \"gfonts://{selected_font_family}@400\"",
         "    id: font_small",
         "    size: 19",
+        f"    glyphs: {common_glyphs}",
         "",
         f"  - file: \"gfonts://{selected_font_family}@500\"",
         "    id: font_normal",
         "    size: 22",
+        f"    glyphs: {common_glyphs}",
         "",
         f"  - file: \"gfonts://{selected_font_family}@700\"",
         "    id: font_header",
-        "    size: 24"
+        "    size: 24",
+        f"    glyphs: {common_glyphs}"
     ]
     
     # Add custom text fonts for non-standard sizes or weights
@@ -283,7 +316,8 @@ def _generate_fonts(device: DeviceConfig) -> str:
             font_lines.extend([
                 f"  - file: \"gfonts://{selected_font_family}@{weight}\"",
                 f"    id: font_text_{size}_{weight}",
-                f"    size: {size}"
+                f"    size: {size}",
+                f"    glyphs: {common_glyphs}"
             ])
     
     # Add MDI fonts if there are icon widgets
@@ -425,7 +459,10 @@ def _generate_text_sensors(device: DeviceConfig) -> str:
             sections.append(f"""  - platform: homeassistant
     id: {safe_id}
     entity_id: {entity_id}
-    internal: true""")
+    internal: true
+    on_value:
+      then:
+        - lambda: 'id(data_updated) = true;'""")
         sections.append("")
     
     # Generate sensor section for numeric widgets
@@ -444,6 +481,9 @@ def _generate_text_sensors(device: DeviceConfig) -> str:
     internal: true""")
             if precision >= 0:
                 sections.append(f"    accuracy_decimals: {precision}")
+            sections.append(f"""    on_value:
+      then:
+        - lambda: 'id(data_updated) = true;'""")
         sections.append("")
     
     if not sections:
@@ -487,34 +527,11 @@ def _generate_navigation_buttons(device: DeviceConfig) -> str:
         page_name = device.pages[idx].name if hasattr(device.pages[idx], 'name') and device.pages[idx].name else f"Page {idx}"
         buttons.append(f"""
   - platform: template
-    name: "reTerminal Go to {page_name}"
-    id: reterminal_goto_page_{idx}
+    name: "Waveshare Go to {page_name}"
+    id: waveshare_goto_page_{idx}
     on_press:
       - lambda: 'id(display_page) = {idx};'
       - component.update: epaper_display""")
-    
-    # Add buzzer control buttons (hardware feature - always included)
-    buttons.append("""
-
-  # Buzzer control buttons (hardware feature)
-  - platform: template
-    name: "reTerminal Beep"
-    id: reterminal_beep
-    on_press:
-      - rtttl.play: "beep:d=32,o=5,b=200:16e6"
-
-  - platform: template
-    name: "reTerminal Beep Error"
-    id: reterminal_beep_error
-    on_press:
-      - rtttl.play: "error:d=16,o=5,b=200:c6"
-
-  - platform: template
-    name: "reTerminal Play Star Wars"
-    id: reterminal_star_wars
-    on_press:
-      - rtttl.play: "StarWars:d=4,o=5,b=45:32p,32f,32f,32f,8a#.,8f.6,32d#,32d,32c,8a#.6,4f.6,32d#,32d,32c,8a#.6,4f.6,32d#,32d,32d#,8c6,32p,32f,32f,32f,8a#.,8f.6,32d#,32d,32c,8a#.6,4f.6,32d#,32d,32c,8a#.6,4f.6,32d#,32d,32d#,8c6"
-""")
     
     return "".join(buttons)
 
@@ -668,6 +685,37 @@ def _generate_scripts(device: DeviceConfig) -> str:
 """
 
 
+def _generate_time_trigger(device: DeviceConfig) -> str:
+    """
+    Generate time-based trigger to check if display needs refresh.
+    Only generated when manual_refresh_only is false.
+    Uses data_updated flag set by sensor on_value triggers.
+    """
+    if device.manual_refresh_only:
+        return "# Manual refresh only - no auto-refresh time trigger"
+    
+    return """# Check if display needs refresh every minute based on data updates
+# The data_updated flag is set to true by sensor on_value triggers
+time:
+  - platform: homeassistant
+    id: ha_time
+    on_time:
+      - seconds: 0
+        minutes: /1
+        then:
+          - if:
+              condition:
+                lambda: 'return id(data_updated) == true;'
+              then:
+                - logger.log: "Sensor data updated: Refreshing display..."
+                - lambda: 'id(data_updated) = false;'
+                - component.update: epaper_display
+                - lambda: 'id(recorded_display_refresh) += 1;'
+              else:
+                - logger.log: "No sensor data updated - skipping display refresh."
+"""
+
+
 def _generate_graphs(device: DeviceConfig) -> str:
     """
     Generate graph definitions for graph widgets.
@@ -772,6 +820,14 @@ def _generate_display_block(device: DeviceConfig) -> str:
     # Get display model from device config, default to 7.50inV2
     display_model = getattr(device, "display_model", "7.50inV2")
     
+    # Models that support full_update_every parameter
+    FULL_UPDATE_SUPPORTED = {
+        "1.54in", "1.54inv2", "2.13in", "2.13in-ttgo", "2.13in-ttgo-b1",
+        "2.13in-ttgo-b73", "2.13in-ttgo-b74", "2.13in-ttgo-dke", "2.13inv2",
+        "2.13inv3", "2.90in", "2.90in-dke", "2.90inv2", "2.90inv2-r2",
+        "7.50inv2p", "gdew029t5", "gdey029t94", "gdey042t81", "gdey0583t81"
+    }
+    
     lines.append("display:")
     lines.append("  - platform: waveshare_epaper")
     lines.append("    id: epaper_display")
@@ -785,8 +841,16 @@ def _generate_display_block(device: DeviceConfig) -> str:
     lines.append("      number: GPIO25")
     lines.append("      inverted: true  # Important for most Waveshare displays!")
     lines.append(f"    rotation: {rotation}°")
+    
+    # Add reset_duration if specified
+    reset_duration = getattr(device, "reset_duration", None)
+    if reset_duration is not None and reset_duration > 0:
+        lines.append(f"    reset_duration: {reset_duration}ms")
+    
     lines.append("    update_interval: never")
-    lines.append("    full_update_every: 30")
+    # Only include full_update_every for supported models
+    if display_model in FULL_UPDATE_SUPPORTED:
+        lines.append("    full_update_every: 30")
     lines.append("    lambda: |-")
     lines.append("      it.fill(Color(0));")
     lines.append("")
@@ -890,6 +954,7 @@ def _resolve_font_by_size(size: int, weight: int = 400) -> str:
 
 def _wrap_with_condition(dst: List[str], indent: str, widget: WidgetConfig, content_lines: List[str]) -> None:
     """Wrap widget rendering code with conditional visibility if configured."""
+    _LOGGER.debug(f"_wrap_with_condition widget {widget.id}: entity={widget.condition_entity}, state={widget.condition_state}, op={widget.condition_operator}")
     has_condition = (
         widget.condition_entity and 
         widget.condition_state is not None and 
@@ -1063,9 +1128,9 @@ def _append_widget_render(dst: List[str], indent: str, widget: WidgetConfig) -> 
             unit = props.get("unit", "")
             
             # Check if it's a numeric sensor (float state)
-            # If precision is set OR it's a 'sensor.' domain, treat as float.
-            # ESPHome 'sensor' components always have float state.
-            is_numeric = (precision >= 0) or entity_id.startswith("sensor.")
+            # Only treat as numeric if precision is explicitly set (>= 0)
+            # If precision is -1, use text_sensor format (%s) to preserve full string with units
+            is_numeric = (precision >= 0)
             
             if is_numeric:
                 # Numeric sensor
@@ -1179,18 +1244,18 @@ def _append_widget_render(dst: List[str], indent: str, widget: WidgetConfig) -> 
         if show_label and (label or show_percentage):
             # Label/percentage row at top
             if label and show_percentage:
-                # Both label and percentage
-                label_font = _resolve_font_by_size(12)
+                # Both label and percentage - use font_small (size 19) for consistency
+                label_font = "id(font_small)"
                 content.append(f'{indent}it.printf({x}, {label_y}, {label_font}, {fg}, "{label}");')
                 # Percentage on the right
                 content.append(f'{indent}it.printf({x}+{w}-30, {label_y}, {label_font}, {fg}, "%.0f%%", id({safe_id}).state);')
             elif label:
-                # Label only
-                label_font = _resolve_font_by_size(12)
+                # Label only - use font_small (size 19) for consistency
+                label_font = "id(font_small)"
                 content.append(f'{indent}it.printf({x}, {label_y}, {label_font}, {fg}, "{label}");')
             elif show_percentage:
-                # Percentage only
-                label_font = _resolve_font_by_size(12)
+                # Percentage only - use font_small (size 19) for consistency
+                label_font = "id(font_small)"
                 content.append(f'{indent}it.printf({x}, {label_y}, {label_font}, {fg}, "%.0f%%", id({safe_id}).state);')
             
             bar_y = label_y + 16
@@ -1222,7 +1287,8 @@ def _append_widget_render(dst: List[str], indent: str, widget: WidgetConfig) -> 
             # No entity configured - show static battery icon
             # CRITICAL: Must include coordinates even if no entity, otherwise parser defaults to 40,40
             # Also include size so it persists
-            content.append(f'{indent}// widget:battery_icon id:{widget.id} type:battery_icon x:{x} y:{y} w:{w} h:{h} size:{size} color:{base_color} (no entity configured)')
+            pct_font = props.get("percentage_font", "font_small")
+            content.append(f'{indent}// widget:battery_icon id:{widget.id} type:battery_icon x:{x} y:{y} w:{w} h:{h} size:{size} color:{base_color} pct_font:{pct_font} (no entity configured)')
             content.append(f'{indent}it.printf({x}, {y}, id({font_id}), {fg}, "\\U000F0079");  // battery')
             _wrap_with_condition(dst, indent, widget, content)
             return
@@ -1239,7 +1305,8 @@ def _append_widget_render(dst: List[str], indent: str, widget: WidgetConfig) -> 
         # These coordinates must be preserved for round-trip editing to work
         # ============================================================================
         is_local = "true" if props.get("is_local_sensor") else "false"
-        content.append(f'{indent}// widget:battery_icon id:{widget.id} type:battery_icon x:{x} y:{y} w:{w} h:{h} ent:{entity_id} size:{size} color:{base_color} local:{is_local}')
+        pct_font = props.get("percentage_font", "font_small")
+        content.append(f'{indent}// widget:battery_icon id:{widget.id} type:battery_icon x:{x} y:{y} w:{w} h:{h} ent:{entity_id} size:{size} color:{base_color} pct_font:{pct_font} local:{is_local}')
         
         # Add logic to pick battery icon based on level
         content.append(f'{indent}{{')
@@ -1256,8 +1323,10 @@ def _append_widget_render(dst: List[str], indent: str, widget: WidgetConfig) -> 
         content.append(f'{indent}  else if (level <= 90) icon = "\\U000F0082";  // battery-90')
         content.append(f'{indent}  else                  icon = "\\U000F0079";  // battery (full)')
         content.append(f'{indent}  it.printf({x}, {y}, id({font_id}), {fg}, "%s", icon);')
-        content.append(f'{indent}  // Show percentage below icon')
-        content.append(f'{indent}  it.printf({x}, {y}+{size}+2, id(font_small), {fg}, "%.0f%%", level);')
+        content.append(f'{indent}  // Show percentage below icon (centered)')
+        # Use user-selected percentage font, default to font_small
+        pct_font = props.get("percentage_font", "font_small")
+        content.append(f'{indent}  it.printf({x}+{size}/2, {y}+{size}+2, id({pct_font}), {fg}, TextAlign::TOP_CENTER, "%.0f%%", level);')
         content.append(f'{indent}}}')
         _wrap_with_condition(dst, indent, widget, content)
         return
@@ -1432,13 +1501,42 @@ def _append_widget_render(dst: List[str], indent: str, widget: WidgetConfig) -> 
         return
 
     # Line: from (x,y) to (x+width,y+height) using width/height as dx/dy
+    # For horizontal/vertical lines, treat the smaller dimension as stroke width, not endpoint offset
     if wtype == "line":
-        dx = w
-        dy = h
         stroke_width = int(props.get("stroke_width", 1) or 1)
+        
+        # Determine if line is mostly horizontal or vertical
+        if abs(w) > abs(h):
+            # Horizontal line - ignore height, use y as baseline
+            dx = w
+            dy = 0
+            is_horizontal = True
+        else:
+            # Vertical line - ignore width, use x as baseline
+            dx = 0
+            dy = h
+            is_horizontal = False
+        
         # Add marker comment for parser
         content.append(f'{indent}// widget:line id:{widget.id} type:line x:{x} y:{y} w:{w} h:{h} stroke:{stroke_width} color:{base_color}')
-        content.append(f"{indent}it.line({x}, {y}, {x}+{dx}, {y}+{dy}, {fg});")
+        
+        # Draw multiple parallel lines to simulate stroke width
+        if stroke_width <= 1:
+            content.append(f"{indent}it.line({x}, {y}, {x}+{dx}, {y}+{dy}, {fg});")
+        else:
+            # Draw stroke_width parallel lines
+            content.append(f"{indent}// Stroke width {stroke_width} - draw {stroke_width} parallel lines")
+            if is_horizontal:
+                # For horizontal lines, draw multiple lines vertically offset
+                content.append(f"{indent}for (int i = 0; i < {stroke_width}; i++) {{")
+                content.append(f"{indent}  it.line({x}, {y}+i, {x}+{dx}, {y}+i, {fg});")
+                content.append(f"{indent}}}")
+            else:
+                # For vertical lines, draw multiple lines horizontally offset
+                content.append(f"{indent}for (int i = 0; i < {stroke_width}; i++) {{")
+                content.append(f"{indent}  it.line({x}+i, {y}, {x}+i, {y}+{dy}, {fg});")
+                content.append(f"{indent}}}")
+        
         _wrap_with_condition(dst, indent, widget, content)
         return
 

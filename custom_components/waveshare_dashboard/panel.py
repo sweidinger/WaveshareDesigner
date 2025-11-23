@@ -31,14 +31,14 @@ from .const import API_BASE_PATH
 _LOGGER = logging.getLogger(__name__)
 
 
-PANEL_URL_PATH = "/reterminal-dashboard"
+PANEL_URL_PATH = "/waveshare-dashboard"
 
 
-class ReTerminalDashboardPanelView(HomeAssistantView):
-    """Serve the reTerminal Dashboard Designer editor as a panel."""
+class WaveshareDashboardPanelView(HomeAssistantView):
+    """Serve the Waveshare Dashboard Designer editor as a panel."""
 
     url = PANEL_URL_PATH
-    name = "reterminal_dashboard:panel"
+    name = "waveshare_dashboard:panel"
     requires_auth = False  # Temporarily disable for testing
     cors_allowed = False
 
@@ -62,7 +62,7 @@ class ReTerminalDashboardPanelView(HomeAssistantView):
         # Priority 2: Look in /config/www/ (manual deployment or HACS plugin)
         component_dir = Path(__file__).parent
         config_dir = component_dir.parent.parent
-        editor_path_www = config_dir / "www" / "reterminal_dashboard_panel" / "editor.html"
+        editor_path_www = config_dir / "www" / "waveshare_dashboard_panel" / "editor.html"
         
         # Try integration directory first (preferred - always available)
         if editor_path_integration.exists():
@@ -73,8 +73,8 @@ class ReTerminalDashboardPanelView(HomeAssistantView):
                 # Replace relative links with absolute static paths for HA serving
                 # This allows the file on disk to use relative paths (for local testing)
                 # while HA serves it with correct absolute paths
-                html = html.replace('href="editor.css"', 'href="/reterminal-dashboard/static/editor.css?v=1"')
-                html = html.replace('src="editor.js"', 'src="/reterminal-dashboard/static/editor.js?v=1"')
+                html = html.replace('href="editor.css"', 'href="/waveshare-dashboard/static/editor.css?v=1"')
+                html = html.replace('src="editor.js"', 'src="/waveshare-dashboard/static/editor.js?v=1"')
 
                 _LOGGER.info("✓ Serving editor from integration: %s (%d bytes)", editor_path_integration, len(html))
                 return web.Response(
@@ -125,11 +125,11 @@ class ReTerminalDashboardPanelView(HomeAssistantView):
         )
 
 
-class ReTerminalDashboardStaticView(HomeAssistantView):
+class WaveshareDashboardStaticView(HomeAssistantView):
     """Serve static frontend assets (CSS/JS) manually."""
 
-    url = "/reterminal-dashboard/static/{filename}"
-    name = "reterminal_dashboard:static"
+    url = "/waveshare-dashboard/static/{filename}"
+    name = "waveshare_dashboard:static"
     requires_auth = False
     cors_allowed = True
 
@@ -1032,11 +1032,11 @@ body {
 """
 
 
-class ReTerminalDashboardFontView(HomeAssistantView):
+class WaveshareDashboardFontView(HomeAssistantView):
     """Serve the MDI font file for the editor."""
 
     url = f"{PANEL_URL_PATH}/materialdesignicons-webfont.ttf"
-    name = "reterminal_dashboard:panel:font"
+    name = "waveshare_dashboard:panel:font"
     requires_auth = False  # Font is a public asset
     cors_allowed = False
 
@@ -1055,7 +1055,7 @@ class ReTerminalDashboardFontView(HomeAssistantView):
         # Priority 2: /config/www/ (manual deployment)
         component_dir = Path(__file__).parent
         config_dir = component_dir.parent.parent
-        font_path_www = config_dir / "www" / "reterminal_dashboard_panel" / "materialdesignicons-webfont.ttf"
+        font_path_www = config_dir / "www" / "waveshare_dashboard_panel" / "materialdesignicons-webfont.ttf"
 
         # Priority 3: /config/esphome/fonts/ (user custom location)
         font_path_esphome = config_dir / "esphome" / "fonts" / "materialdesignicons-webfont.ttf"

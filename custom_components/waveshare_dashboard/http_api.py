@@ -40,14 +40,14 @@ from .yaml_parser import yaml_to_layout
 _LOGGER = logging.getLogger(__name__)
 
 
-class ReTerminalLayoutView(HomeAssistantView):
+class WaveshareLayoutView(HomeAssistantView):
     """Provide layout GET/POST for the reTerminal dashboard editor.
 
     For the MVP we maintain a single logical layout/device.
     """
 
     url = f"{API_BASE_PATH}/layout"
-    name = "api:reterminal_dashboard_layout"
+    name = "api:waveshare_dashboard_layout"
     requires_auth = False  # Temporarily disable for testing
     cors_allowed = True
 
@@ -108,11 +108,11 @@ class ReTerminalLayoutView(HomeAssistantView):
         )
 
 
-class ReTerminalSnippetView(HomeAssistantView):
+class WaveshareSnippetView(HomeAssistantView):
     """Generate and return an ESPHome YAML snippet for the current layout."""
 
     url = f"{API_BASE_PATH}/snippet"
-    name = "api:reterminal_dashboard_snippet"
+    name = "api:waveshare_dashboard_snippet"
     requires_auth = False  # Temporarily disable for testing
     cors_allowed = True
 
@@ -150,7 +150,7 @@ class ReTerminalSnippetView(HomeAssistantView):
         )
 
 
-class ReTerminalImportSnippetView(HomeAssistantView):
+class WaveshareImportSnippetView(HomeAssistantView):
     """Import an ESPHome YAML snippet and reconstruct the layout.
 
     Accepts a snippet that roughly follows our generated pattern:
@@ -161,7 +161,7 @@ class ReTerminalImportSnippetView(HomeAssistantView):
     """
 
     url = f"{API_BASE_PATH}/import_snippet"
-    name = "api:reterminal_dashboard_import_snippet"
+    name = "api:waveshare_dashboard_import_snippet"
     requires_auth = False  # Temporarily disable for testing
     cors_allowed = True
 
@@ -244,7 +244,7 @@ class ReTerminalImportSnippetView(HomeAssistantView):
         )
 
 
-class ReTerminalEntitiesView(HomeAssistantView):
+class WaveshareEntitiesView(HomeAssistantView):
     """Expose a filtered list of Home Assistant entities for the editor entity picker.
 
     This endpoint is:
@@ -254,7 +254,7 @@ class ReTerminalEntitiesView(HomeAssistantView):
     """
 
     url = f"{API_BASE_PATH}/entities"
-    name = "api:reterminal_dashboard_entities"
+    name = "api:waveshare_dashboard_entities"
     requires_auth = False  # Temporarily disable for testing
     cors_allowed = True
 
@@ -315,7 +315,7 @@ class ReTerminalEntitiesView(HomeAssistantView):
             )
 
             # Hard safety cap; avoid returning an excessively large payload.
-            if len(results) >= 1000:
+            if len(results) >= 5000:
                 break
 
         return self._json(results)
@@ -328,11 +328,11 @@ class ReTerminalEntitiesView(HomeAssistantView):
         )
 
 
-class ReTerminalTestView(HomeAssistantView):
+class WaveshareTestView(HomeAssistantView):
     """Simple test endpoint to verify HTTP views are working."""
 
     url = f"{API_BASE_PATH}/test"
-    name = "api:reterminal_dashboard_test"
+    name = "api:waveshare_dashboard_test"
     requires_auth = False  # Temporarily disable for testing
     cors_allowed = True
 
@@ -343,8 +343,8 @@ class ReTerminalTestView(HomeAssistantView):
         """Return test response."""
         return self._json({
             "status": "ok", 
-            "message": "reTerminal Dashboard API is working",
-            "integration": "reterminal_dashboard"
+            "message": "Waveshare Dashboard API is working",
+            "integration": "waveshare_dashboard"
         })
 
     def _json(self, data: Any, status_code: int = HTTPStatus.OK):
@@ -355,7 +355,7 @@ class ReTerminalTestView(HomeAssistantView):
         )
 
 
-class ReTerminalImageProxyView(HomeAssistantView):
+class WaveshareImageProxyView(HomeAssistantView):
     """Proxy ESPHome images from /config/esphome/images/ for editor preview.
     
     This allows the editor to preview images that will be used on the device.
@@ -363,7 +363,7 @@ class ReTerminalImageProxyView(HomeAssistantView):
     """
 
     url = f"{API_BASE_PATH}/image_proxy"
-    name = "api:reterminal_dashboard_image_proxy"
+    name = "api:waveshare_dashboard_image_proxy"
     requires_auth = False  # Temporarily disable for testing
     cors_allowed = True
 
@@ -453,12 +453,12 @@ class ReTerminalImageProxyView(HomeAssistantView):
 async def async_register_http_views(hass: HomeAssistant, storage: DashboardStorage) -> None:
     """Register all HTTP views for this integration."""
 
-    hass.http.register_view(ReTerminalLayoutView(hass, storage))
-    hass.http.register_view(ReTerminalSnippetView(hass, storage))
-    hass.http.register_view(ReTerminalImportSnippetView(hass, storage))
-    hass.http.register_view(ReTerminalEntitiesView(hass))
-    hass.http.register_view(ReTerminalTestView(hass))
-    hass.http.register_view(ReTerminalImageProxyView(hass))
+    hass.http.register_view(WaveshareLayoutView(hass, storage))
+    hass.http.register_view(WaveshareSnippetView(hass, storage))
+    hass.http.register_view(WaveshareImportSnippetView(hass, storage))
+    hass.http.register_view(WaveshareEntitiesView(hass))
+    hass.http.register_view(WaveshareTestView(hass))
+    hass.http.register_view(WaveshareImageProxyView(hass))
 
     _LOGGER.debug(
         "reterminal_dashboard: HTTP API views registered at %s (layout, snippet, import_snippet, entities, test, image_proxy)",

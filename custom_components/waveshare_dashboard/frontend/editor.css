@@ -606,11 +606,11 @@
     @font-face {
       font-family: "MDI";
       src:
+        url("/waveshare-dashboard/materialdesignicons-webfont.ttf") format("truetype"),
         url("materialdesignicons-webfont.ttf") format("truetype"),
         url("/local/esphome/fonts/materialdesignicons-webfont.ttf") format("truetype"),
-        url("/local/reterminal_dashboard/materialdesignicons-webfont.ttf") format("truetype"),
-        url("/hacsfiles/reterminal_dashboard/materialdesignicons-webfont.ttf") format("truetype"),
-        url("/reterminal-dashboard/materialdesignicons-webfont.ttf") format("truetype");
+        url("/local/waveshare_dashboard/materialdesignicons-webfont.ttf") format("truetype"),
+        url("/hacsfiles/waveshare_dashboard/materialdesignicons-webfont.ttf") format("truetype");
       font-weight: normal;
       font-style: normal;
     }

@@ -1,12 +1,12 @@
 set_page:
   name: Set Page
-  description: Set the current page for a reTerminal device
+  description: Set the current page for a Waveshare device
   fields:
     device_id:
       name: Device ID
-      description: The ID of the reTerminal device
+      description: The ID of the Waveshare device
       required: true
-      example: "reterminal_e1001"
+      example: "waveshare_display"
       selector:
         text:
     page_index:
@@ -22,24 +22,24 @@ set_page:
 
 next_page:
   name: Next Page
-  description: Switch to the next page on a reTerminal device
+  description: Switch to the next page on a Waveshare device
   fields:
     device_id:
       name: Device ID
-      description: The ID of the reTerminal device
+      description: The ID of the Waveshare device
       required: true
-      example: "reterminal_e1001"
+      example: "waveshare_display"
       selector:
         text:
 
 prev_page:
   name: Previous Page
-  description: Switch to the previous page on a reTerminal device
+  description: Switch to the previous page on a Waveshare device
   fields:
     device_id:
       name: Device ID
-      description: The ID of the reTerminal device
+      description: The ID of the Waveshare device
       required: true
-      example: "reterminal_e1001"
+      example: "waveshare_display"
       selector:
         text:
