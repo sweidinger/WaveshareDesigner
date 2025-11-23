@@ -146,6 +146,12 @@ class PageConfig:
         widgets_data = data.get("widgets", []) or []
         widgets: List[WidgetConfig] = []
         for w in widgets_data:
+            # Ensure condition_operator defaults to '==' if condition_entity is set
+            condition_entity = w.get("condition_entity")
+            condition_operator = w.get("condition_operator")
+            if condition_entity and condition_operator is None:
+                condition_operator = "=="
+            
             widget = WidgetConfig(
                 id=str(w.get("id", "")),
                 type=str(w.get("type", "label")),
@@ -156,9 +162,9 @@ class PageConfig:
                 entity_id=w.get("entity_id"),
                 title=w.get("title"),
                 icon=w.get("icon"),
-                condition_entity=w.get("condition_entity"),
+                condition_entity=condition_entity,
                 condition_state=w.get("condition_state"),
-                condition_operator=w.get("condition_operator"),
+                condition_operator=condition_operator,
                 props=w.get("props") or {},
             )
             widget.clamp_to_canvas()
