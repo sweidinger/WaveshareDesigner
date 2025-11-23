@@ -2724,9 +2724,9 @@ function renderPropertiesPanel() {
         );
 
         addSelect(
-            "Locale / Time format",
+            "Time Format",
             widget.props.locale || "de_DE",
-            [{value: "de_DE", label: "German (24h)"}, {value: "en_US", label: "English (12h AM/PM)"}, {value: "24h", label: "24-hour (generic)"}],
+            [{value: "de_DE", label: "24h (HH:MM)"}, {value: "en_US", label: "12h (HH:MM AM/PM)"}, {value: "24h", label: "24h generic"}],
             (val) => {
                 widget.props.locale = val;
                 renderCanvas();
@@ -3269,9 +3269,9 @@ function renderPropertiesPanel() {
         );
 
         addSelect(
-            "Locale / Time format",
+            "Date Format",
             widget.props.locale || "de_DE",
-            [{value: "de_DE", label: "German (24h)"}, {value: "en_US", label: "English (12h AM/PM)"}, {value: "24h", label: "24-hour (generic)"}],
+            [{value: "de_DE", label: "DD.MM.YYYY (German)"}, {value: "en_US", label: "Mon, Nov 23 (English)"}, {value: "24h", label: "Mon, Nov 23 (generic)"}],
             (val) => {
                 widget.props.locale = val;
                 renderCanvas();
