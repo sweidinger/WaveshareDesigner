@@ -1038,6 +1038,7 @@ function createWidget(type) {
         widget.props.time_font_size = 28;
         widget.props.date_font_size = 16;
         widget.props.color = "black";
+        widget.props.locale = "de_DE";  // Default to German
     } else if (type === "last_refresh") {
         widget.type = "last_refresh";
         widget.width = 200;
@@ -1442,6 +1443,7 @@ function renderCanvas() {
             const timeFontSize = props.time_font_size || 28;
             const dateFontSize = props.date_font_size || 16;
             const color = props.color || "black";
+            const locale = props.locale || "de_DE";
             const colorStyle =
                 color === "white"
                     ? "#ffffff"
@@ -1450,8 +1452,28 @@ function renderCanvas() {
                         : "#000000";
 
             const now = new Date();
-            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-            const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            
+            // Format time and date based on locale
+            let timeStr, dateStr;
+            if (locale === "en_US") {
+                // 12-hour with AM/PM
+                timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                // Mon, Nov 23
+                dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            } else if (locale === "de_DE") {
+                // 24-hour
+                timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', hour12: false });
+                // Mo, 23. Nov
+                const parts = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(now);
+                const weekday = parts.find(p => p.type === 'weekday')?.value || '';
+                const day = parts.find(p => p.type === 'day')?.value || '';
+                const month = parts.find(p => p.type === 'month')?.value || '';
+                dateStr = `${weekday}, ${day}. ${month}`;
+            } else {
+                // Generic 24h
+                timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            }
 
             el.style.display = "flex";
             el.style.flexDirection = "column";
@@ -3242,6 +3264,17 @@ function renderPropertiesPanel() {
             ["time_date", "time_only", "date_only"],
             (val) => {
                 widget.props.format = val;
+                renderCanvas();
+                scheduleSnippetUpdate();
+            }
+        );
+
+        addSelect(
+            "Locale / Time format",
+            widget.props.locale || "de_DE",
+            [{value: "de_DE", label: "German (24h)"}, {value: "en_US", label: "English (12h AM/PM)"}, {value: "24h", label: "24-hour (generic)"}],
+            (val) => {
+                widget.props.locale = val;
                 renderCanvas();
                 scheduleSnippetUpdate();
             }
