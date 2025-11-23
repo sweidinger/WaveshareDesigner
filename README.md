@@ -8,6 +8,8 @@ This is a fork of the excellent [ReTerminal Designer](https://github.com/koosoli
 ![Platform](https://img.shields.io/badge/platform-Home%20Assistant-blue)
 ![License](https://img.shields.io/badge/license-GPL--3.0-green)
 
+![Waveshare Dashboard Designer](screenshots/Screenshot1.png)
+
 ## 🎯 What This Does
 
 Instead of hand-coding ESPHome display lambdas, design your e-paper dashboard **visually** in Home Assistant:
