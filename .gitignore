@@ -1,0 +1,22 @@
+# Private deployment scripts with passwords
+install_to_homeassistant.sh
+upload_with_password.sh
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
