@@ -1199,7 +1199,7 @@ def _append_widget_render(dst: List[str], indent: str, widget: WidgetConfig) -> 
         }
         date_formats = {
             "en_US": "%a, %b %d",     # Mon, Jan 01
-            "de_DE": "%a, %d. %b",    # Mo, 01. Jan
+            "de_DE": "%d.%m.%Y",      # 23.11.2025
         }
         
         time_fmt = time_formats.get(locale, "%H:%M")

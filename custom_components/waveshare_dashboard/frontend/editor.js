@@ -1463,12 +1463,11 @@ function renderCanvas() {
             } else if (locale === "de_DE") {
                 // 24-hour
                 timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', hour12: false });
-                // Mo, 23. Nov
-                const parts = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(now);
-                const weekday = parts.find(p => p.type === 'weekday')?.value || '';
-                const day = parts.find(p => p.type === 'day')?.value || '';
-                const month = parts.find(p => p.type === 'month')?.value || '';
-                dateStr = `${weekday}, ${day}. ${month}`;
+                // 23.11.2025 (DD.MM.YYYY)
+                const day = String(now.getDate()).padStart(2, '0');
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const year = now.getFullYear();
+                dateStr = `${day}.${month}.${year}`;
             } else {
                 // Generic 24h
                 timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
