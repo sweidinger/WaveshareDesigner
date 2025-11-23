@@ -1180,6 +1180,7 @@ def _append_widget_render(dst: List[str], indent: str, widget: WidgetConfig) -> 
         format_type = props.get("format", "time_date")
         time_font_size = int(props.get("time_font_size", 28) or 28)
         date_font_size = int(props.get("date_font_size", 16) or 16)
+        locale = props.get("locale", "en_US")  # Default to US English
         
         time_font = _resolve_font_by_size(time_font_size, 700)
         date_font = _resolve_font_by_size(date_font_size, 400)
@@ -1187,23 +1188,37 @@ def _append_widget_render(dst: List[str], indent: str, widget: WidgetConfig) -> 
         # Calculate center X for alignment
         cx = x + w // 2
         
-        # Extract font_family for marker (even though datetime currently doesn't use it for rendering)
+        # Extract font_family for marker
         font_family = props.get("font_family") or "Inter"
         
+        # Define locale-specific format strings
+        time_formats = {
+            "en_US": "%I:%M %p",      # 12-hour with AM/PM
+            "de_DE": "%H:%M",         # 24-hour
+            "24h": "%H:%M",           # Generic 24-hour
+        }
+        date_formats = {
+            "en_US": "%a, %b %d",     # Mon, Jan 01
+            "de_DE": "%a, %d. %b",    # Mo, 01. Jan
+        }
+        
+        time_fmt = time_formats.get(locale, "%H:%M")
+        date_fmt = date_formats.get(locale, "%a, %b %d")
+        
         # Add marker comment for parser
-        content.append(f'{indent}// widget:datetime id:{widget.id} type:datetime x:{x} y:{y} w:{w} h:{h} format:{format_type} time_font:{time_font_size} date_font:{date_font_size} color:{base_color} font_family:{font_family}')
+        content.append(f'{indent}// widget:datetime id:{widget.id} type:datetime x:{x} y:{y} w:{w} h:{h} format:{format_type} time_font:{time_font_size} date_font:{date_font_size} locale:{locale} color:{base_color} font_family:{font_family}')
         
         if format_type == "time_only":
             # Time only - centered
-            content.append(f'{indent}it.strftime({cx}, {y}, {time_font}, {fg}, TextAlign::TOP_CENTER, "%H:%M", id(ha_time).now());')
+            content.append(f'{indent}it.strftime({cx}, {y}, {time_font}, {fg}, TextAlign::TOP_CENTER, "{time_fmt}", id(ha_time).now());')
         elif format_type == "date_only":
             # Date only - centered
-            content.append(f'{indent}it.strftime({cx}, {y}, {date_font}, {fg}, TextAlign::TOP_CENTER, "%a, %b %d", id(ha_time).now());')
+            content.append(f'{indent}it.strftime({cx}, {y}, {date_font}, {fg}, TextAlign::TOP_CENTER, "{date_fmt}", id(ha_time).now());')
         else:
             # time_date - time on top, date below
-            content.append(f'{indent}it.strftime({cx}, {y}, {time_font}, {fg}, TextAlign::TOP_CENTER, "%H:%M", id(ha_time).now());')
+            content.append(f'{indent}it.strftime({cx}, {y}, {time_font}, {fg}, TextAlign::TOP_CENTER, "{time_fmt}", id(ha_time).now());')
             date_y = y + time_font_size + 4
-            content.append(f'{indent}it.strftime({cx}, {date_y}, {date_font}, {fg}, TextAlign::TOP_CENTER, "%a, %b %d", id(ha_time).now());')
+            content.append(f'{indent}it.strftime({cx}, {date_y}, {date_font}, {fg}, TextAlign::TOP_CENTER, "{date_fmt}", id(ha_time).now());')
         _wrap_with_condition(dst, indent, widget, content)
         return
 

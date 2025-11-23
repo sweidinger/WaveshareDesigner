@@ -2085,9 +2085,16 @@ function renderPropertiesPanel() {
         sel.className = "prop-input";
         options.forEach((optVal) => {
             const opt = document.createElement("option");
-            opt.value = optVal;
-            opt.textContent = optVal;
-            if (optVal === value) opt.selected = true;
+            // Support both string values and {value, label} objects
+            if (typeof optVal === "object" && optVal.value !== undefined) {
+                opt.value = optVal.value;
+                opt.textContent = optVal.label || optVal.value;
+                if (optVal.value === value) opt.selected = true;
+            } else {
+                opt.value = optVal;
+                opt.textContent = optVal;
+                if (optVal === value) opt.selected = true;
+            }
             sel.appendChild(opt);
         });
         sel.addEventListener("change", () => {
@@ -2690,6 +2697,17 @@ function renderPropertiesPanel() {
             ["time_date", "time_only", "date_only"],
             (val) => {
                 widget.props.format = val;
+                renderCanvas();
+                scheduleSnippetUpdate();
+            }
+        );
+
+        addSelect(
+            "Locale / Time format",
+            widget.props.locale || "de_DE",
+            [{value: "de_DE", label: "German (24h)"}, {value: "en_US", label: "English (12h AM/PM)"}, {value: "24h", label: "24-hour (generic)"}],
+            (val) => {
+                widget.props.locale = val;
                 renderCanvas();
                 scheduleSnippetUpdate();
             }
