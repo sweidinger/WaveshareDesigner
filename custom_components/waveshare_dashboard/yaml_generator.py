@@ -234,6 +234,11 @@ def _generate_fonts(device: DeviceConfig) -> str:
                     text_sizes.add((time_size, 700)) # Time usually bold
                 if date_size > 0:
                     text_sizes.add((date_size, 400)) # Date usually regular
+            elif wtype == "last_refresh":
+                props = widget.props or {}
+                font_size = int(props.get("font_size", 12) or 12)
+                font_weight = int(props.get("font_weight", 400) or 400)
+                text_sizes.add((font_size, font_weight))
             elif wtype == "image":
                 props = widget.props or {}
                 path = props.get("path", "").strip()
