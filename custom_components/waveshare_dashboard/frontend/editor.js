@@ -287,6 +287,14 @@ function parseSnippetYamlOffline(yamlText) {
                         color: p.color || "black",
                         font_style: p.font_style || "regular"
                     };
+                } else if (p.type === "last_refresh") {
+                    widget.props = {
+                        font_size: parseInt(p.font_size || 12, 10),
+                        font_weight: parseInt(p.font_weight || 400, 10),
+                        label: p.label || "Last refresh:",
+                        format: p.format || "%H:%M:%S",
+                        color: p.color || "black"
+                    };
                 } else if (p.type === "progress_bar") {
                     widget.props = {
                         show_label: (p.show_label !== "false"),
@@ -1030,6 +1038,15 @@ function createWidget(type) {
         widget.props.time_font_size = 28;
         widget.props.date_font_size = 16;
         widget.props.color = "black";
+    } else if (type === "last_refresh") {
+        widget.type = "last_refresh";
+        widget.width = 200;
+        widget.height = 20;
+        widget.props.font_size = 12;
+        widget.props.font_weight = 400;
+        widget.props.label = "Last refresh:";
+        widget.props.format = "%H:%M:%S";
+        widget.props.color = "black";
     } else if (type === "progress_bar") {
         widget.type = "progress_bar";
         widget.width = 200;
@@ -1465,6 +1482,38 @@ function renderCanvas() {
                 el.appendChild(timeEl);
                 el.appendChild(dateEl);
             }
+        } else if (type === "last_refresh") {
+            const fontSize = props.font_size || 12;
+            const label = props.label || "Last refresh:";
+            const format = props.format || "%H:%M:%S";
+            const color = props.color || "black";
+            const colorStyle =
+                color === "white"
+                    ? "#ffffff"
+                    : color === "gray"
+                        ? "#aaaaaa"
+                        : "#000000";
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
+            el.style.display = "flex";
+            el.style.alignItems = "center";
+            el.style.gap = "4px";
+            el.style.color = colorStyle;
+            el.style.fontSize = fontSize + "px";
+            el.style.padding = "2px 4px";
+
+            if (label) {
+                const labelSpan = document.createElement("span");
+                labelSpan.textContent = label;
+                el.appendChild(labelSpan);
+            }
+
+            const timeSpan = document.createElement("span");
+            timeSpan.style.fontFamily = "monospace";
+            timeSpan.textContent = timeStr;
+            el.appendChild(timeSpan);
         } else if (type === "puppet") {
             const puppetText = document.createElement("div");
             puppetText.style.color = "white";
@@ -2657,6 +2706,37 @@ function renderPropertiesPanel() {
             renderCanvas();
             scheduleSnippetUpdate();
         });
+
+        addSelect("Color", widget.props.color || "black", ["black", "white", "gray"], (val) => {
+            widget.props.color = val;
+            renderCanvas();
+            scheduleSnippetUpdate();
+        });
+    }
+
+    if (type === "last_refresh") {
+        addLabeledInput("Label text", "text", widget.props.label || "Last refresh:", (v) => {
+            widget.props.label = v;
+            renderCanvas();
+            scheduleSnippetUpdate();
+        });
+
+        addLabeledInput("Font size", "number", widget.props.font_size || 12, (v) => {
+            widget.props.font_size = parseInt(v || "12", 10) || 12;
+            renderCanvas();
+            scheduleSnippetUpdate();
+        });
+
+        addSelect(
+            "Time format",
+            widget.props.format || "%H:%M:%S",
+            ["%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p"],
+            (val) => {
+                widget.props.format = val;
+                renderCanvas();
+                scheduleSnippetUpdate();
+            }
+        );
 
         addSelect("Color", widget.props.color || "black", ["black", "white", "gray"], (val) => {
             widget.props.color = val;
@@ -4590,6 +4670,25 @@ function generateSnippetLocally() {
                     } else {
                         lines.push(`        it.strftime(${w.x}, ${w.y}, id(font_large), ${color}, TextAlign::TOP_LEFT, "%H:%M", ${nowVar});`);
                         lines.push(`        it.strftime(${w.x}, ${w.y} + ${timeSize}, id(font_medium), ${color}, TextAlign::TOP_LEFT, "%a, %b %d", ${nowVar});`);
+                    }
+
+                } else if (t === "last_refresh") {
+                    const fontSize = parseInt(p.font_size || 12, 10);
+                    const fontWeight = parseInt(p.font_weight || 400, 10);
+                    const label = (p.label || "Last refresh:").replace(/"/g, '\\"');
+                    const format = p.format || "%H:%M:%S";
+                    const colorProp = p.color || "black";
+                    const color = colorProp === "white" ? "COLOR_OFF" : "COLOR_ON";
+
+                    lines.push(`        // widget:last_refresh id:${w.id} type:last_refresh x:${w.x} y:${w.y} w:${w.width} h:${w.height} font_size:${fontSize} font_weight:${fontWeight} label:"${label}" format:${format} color:${colorProp}`);
+                    lines.push(`        // Note: Uses 'time' component (id: ha_time or homeassistant_time)`);
+                    
+                    if (label) {
+                        lines.push(`        it.printf(${w.x}, ${w.y}, id(font_small), ${color}, "${label} ");`);
+                        const labelWidth = label.length * 6;
+                        lines.push(`        it.strftime(${w.x + labelWidth}, ${w.y}, id(font_small), ${color}, "${format}", id(ha_time).now());`);
+                    } else {
+                        lines.push(`        it.strftime(${w.x}, ${w.y}, id(font_small), ${color}, "${format}", id(ha_time).now());`);
                     }
 
                 } else if (t === "image") {

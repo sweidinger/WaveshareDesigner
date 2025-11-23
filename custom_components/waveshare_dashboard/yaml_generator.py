@@ -1202,6 +1202,35 @@ def _append_widget_render(dst: List[str], indent: str, widget: WidgetConfig) -> 
         _wrap_with_condition(dst, indent, widget, content)
         return
 
+    # Last refresh timestamp widget
+    if wtype == "last_refresh":
+        font_size = int(props.get("font_size", 12) or 12)
+        font_weight = int(props.get("font_weight", 400) or 400)
+        label = props.get("label", "Last refresh:")
+        format_str = props.get("format", "%H:%M:%S")
+        
+        font = _resolve_font_by_size(font_size, font_weight)
+        
+        # Escape label
+        escaped_label = label.replace('"', '\\"')
+        
+        # Add marker comment for parser
+        content.append(f'{indent}// widget:last_refresh id:{widget.id} type:last_refresh x:{x} y:{y} w:{w} h:{h} font_size:{font_size} font_weight:{font_weight} label:"{escaped_label}" format:{format_str} color:{base_color}')
+        
+        # Print label and timestamp
+        if label:
+            content.append(f'{indent}it.printf({x}, {y}, {font}, {fg}, "{escaped_label} ");')
+            # Calculate label width approximately (6 pixels per char)
+            label_width = len(label) * 6
+            time_x = x + label_width
+            content.append(f'{indent}it.strftime({time_x}, {y}, {font}, {fg}, "{format_str}", id(ha_time).now());')
+        else:
+            # Just show timestamp without label
+            content.append(f'{indent}it.strftime({x}, {y}, {font}, {fg}, "{format_str}", id(ha_time).now());')
+        
+        _wrap_with_condition(dst, indent, widget, content)
+        return
+
     # Progress bar widget
     if wtype == "progress_bar":
         entity_id = (widget.entity_id or "").strip()
