@@ -3592,6 +3592,12 @@ function renderPropertiesPanel() {
             entityWrap.appendChild(entityRow);
             panel.appendChild(entityWrap);
 
+            addLabeledInput("Attribute (optional)", "text", widget.attribute || "", (v) => {
+                widget.attribute = v.trim();
+                renderCanvas();
+                scheduleSnippetUpdate();
+            });
+
             const localWrap = document.createElement("div");
             localWrap.className = "field";
             const localLbl = document.createElement("div");
