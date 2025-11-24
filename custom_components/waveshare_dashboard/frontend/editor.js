@@ -3587,6 +3587,7 @@ function renderPropertiesPanel() {
                     fetchEntityStates();
                 }
                 renderCanvas();
+                renderPropertiesPanel();  // Refresh to update attribute dropdown
                 scheduleSnippetUpdate();
             });
 
@@ -3607,11 +3608,36 @@ function renderPropertiesPanel() {
             entityWrap.appendChild(entityRow);
             panel.appendChild(entityWrap);
 
-            addLabeledInput("Attribute (optional)", "text", widget.attribute || "", (v) => {
-                widget.attribute = v.trim();
-                renderCanvas();
-                scheduleSnippetUpdate();
-            });
+            // Attribute dropdown - populate from entity attributes if available
+            const entityId = widget.entity_id || "";
+            const cached = entityId ? entityStatesCache[entityId] : null;
+            const availableAttrs = cached && cached.attributes ? Object.keys(cached.attributes) : [];
+            
+            if (availableAttrs.length > 0) {
+                // Show dropdown with available attributes
+                const attrOptions = [{value: "", label: "(none - use state)"}];
+                availableAttrs.forEach(attr => {
+                    attrOptions.push({value: attr, label: attr});
+                });
+                
+                addSelect(
+                    "Attribute (optional)",
+                    widget.attribute || "",
+                    attrOptions,
+                    (val) => {
+                        widget.attribute = val;
+                        renderCanvas();
+                        scheduleSnippetUpdate();
+                    }
+                );
+            } else {
+                // Show text input if no entity selected or no attributes available
+                addLabeledInput("Attribute (optional)", "text", widget.attribute || "", (v) => {
+                    widget.attribute = v.trim();
+                    renderCanvas();
+                    scheduleSnippetUpdate();
+                });
+            }
 
             const localWrap = document.createElement("div");
             localWrap.className = "field";
