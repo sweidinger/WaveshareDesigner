@@ -58,11 +58,7 @@ async function fetchEntityStates() {
         for (const entity of entities) {
             if (entity.entity_id && entity.state !== undefined) {
                 const stateValue = entity.unit ? `${entity.state} ${entity.unit}` : entity.state;
-                // Store both state and attributes
-                newCache[entity.entity_id] = {
-                    state: stateValue,
-                    attributes: entity.attributes || {}
-                };
+                newCache[entity.entity_id] = stateValue;
             }
         }
         entityStatesCache = newCache;
@@ -86,17 +82,8 @@ async function fetchEntityStates() {
     }
 }
 
-function getEntityState(entityId, attribute = null) {
-    const cached = entityStatesCache[entityId];
-    if (!cached) return null;
-    
-    // If attribute is specified, return the attribute value
-    if (attribute && cached.attributes && cached.attributes[attribute] !== undefined) {
-        return cached.attributes[attribute];
-    }
-    
-    // Otherwise return the state (backward compatible)
-    return cached.state || null;
+function getEntityState(entityId) {
+    return entityStatesCache[entityId] || null;
 }
 
 async function loadHaEntitiesIfNeeded() {
@@ -1917,7 +1904,6 @@ function renderCanvas() {
 
             if (type === "sensor_text") {
                 const entityId = widget.entity_id || "";
-                const attribute = widget.attribute || "";
                 const label = widget.title || "";
                 const valueFormat = props.value_format || "value_only";
                 const labelFontSize = props.label_font_size || 14;
@@ -1927,9 +1913,8 @@ function renderCanvas() {
                 let displayValue = "23.5°C";
 
                 if (hasHaBackend() && entityId) {
-                    const state = getEntityState(entityId, attribute);
-                    const attrMarker = attribute ? ` attr=${attribute}` : "";
-                    console.log(`[Canvas] Rendering sensor_text: entity=${entityId}${attrMarker}, state=${state}, label=${label}, format=${valueFormat}`);
+                    const state = getEntityState(entityId);
+                    console.log(`[Canvas] Rendering sensor_text: entity=${entityId}, state=${state}, label=${label}, format=${valueFormat}`);
 
                     if (state !== null && state !== undefined) {
                         const precision = parseInt(props.precision, 10);
@@ -3607,37 +3592,6 @@ function renderPropertiesPanel() {
             entityWrap.appendChild(entityLbl);
             entityWrap.appendChild(entityRow);
             panel.appendChild(entityWrap);
-
-            // Attribute dropdown - populate from entity attributes if available
-            const entityId = widget.entity_id || "";
-            const cached = entityId ? entityStatesCache[entityId] : null;
-            const availableAttrs = cached && cached.attributes ? Object.keys(cached.attributes) : [];
-            
-            if (availableAttrs.length > 0) {
-                // Show dropdown with available attributes
-                const attrOptions = [{value: "", label: "(none - use state)"}];
-                availableAttrs.forEach(attr => {
-                    attrOptions.push({value: attr, label: attr});
-                });
-                
-                addSelect(
-                    "Attribute (optional)",
-                    widget.attribute || "",
-                    attrOptions,
-                    (val) => {
-                        widget.attribute = val;
-                        renderCanvas();
-                        scheduleSnippetUpdate();
-                    }
-                );
-            } else {
-                // Show text input if no entity selected or no attributes available
-                addLabeledInput("Attribute (optional)", "text", widget.attribute || "", (v) => {
-                    widget.attribute = v.trim();
-                    renderCanvas();
-                    scheduleSnippetUpdate();
-                });
-            }
 
             const localWrap = document.createElement("div");
             localWrap.className = "field";

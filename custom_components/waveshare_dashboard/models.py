@@ -85,7 +85,6 @@ class WidgetConfig:
     entity_id: Optional[str] = None
     title: Optional[str] = None
     icon: Optional[str] = None
-    attribute: Optional[str] = None  # Optional attribute name to display instead of state
 
     # Conditional visibility settings
     condition_entity: Optional[str] = None  # Entity to check for visibility
@@ -163,7 +162,6 @@ class PageConfig:
                 entity_id=w.get("entity_id"),
                 title=w.get("title"),
                 icon=w.get("icon"),
-                attribute=w.get("attribute"),
                 condition_entity=condition_entity,
                 condition_state=w.get("condition_state"),
                 condition_operator=condition_operator,

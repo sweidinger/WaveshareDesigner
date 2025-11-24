@@ -1110,7 +1110,6 @@ def _append_widget_render(dst: List[str], indent: str, widget: WidgetConfig) -> 
     # Sensor text (label + value from HA sensor)
     if wtype in ("sensor", "sensor_text"):
         entity_id = (widget.entity_id or "").strip()
-        attribute = (widget.attribute or "").strip()
         label = (widget.title or "").replace('"', '\\"')
         value_format = props.get("value_format", "label_value")
         label_font_size = int(props.get("label_font_size", 14) or 14)
@@ -1128,22 +1127,15 @@ def _append_widget_render(dst: List[str], indent: str, widget: WidgetConfig) -> 
             
             # Add marker comment for parser with font sizes and font_family
             is_local = "true" if props.get("is_local_sensor") else "false"
-            attr_marker = f" attr:{attribute}" if attribute else ""
-            content.append(f'{indent}// widget:sensor_text id:{widget.id} type:sensor_text x:{x} y:{y} w:{w} h:{h} ent:{entity_id}{attr_marker} title:"{label}" label_font:{label_font_size} value_font:{value_font_size} format:{value_format} font_family:{font_family} font_weight:{font_weight} precision:{precision} local:{is_local}')
+            content.append(f'{indent}// widget:sensor_text id:{widget.id} type:sensor_text x:{x} y:{y} w:{w} h:{h} ent:{entity_id} title:"{label}" label_font:{label_font_size} value_font:{value_font_size} format:{value_format} font_family:{font_family} font_weight:{font_weight} precision:{precision} local:{is_local}')
             
             # Determine value expression and format string
             unit = props.get("unit", "")
             
-            # Check if accessing an attribute or the main state
-            if attribute:
-                # Access attribute - always treat as string
-                val_expr = f"id({safe_id}).state_attr(\"{attribute}\").value_or(\"N/A\").c_str()"
-                fmt_spec = f"%s{unit}"
-            else:
-                # Check if it's a numeric sensor (float state)
-                # Only treat as numeric if precision is explicitly set (>= 0)
-                # If precision is -1, use text_sensor format (%s) to preserve full string with units
-                is_numeric = (precision >= 0)
+            # Check if it's a numeric sensor (float state)
+            # Only treat as numeric if precision is explicitly set (>= 0)
+            # If precision is -1, use text_sensor format (%s) to preserve full string with units
+            is_numeric = (precision >= 0)
                 
                 if is_numeric:
                     # Numeric sensor
