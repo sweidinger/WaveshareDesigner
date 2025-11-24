@@ -311,6 +311,7 @@ class WaveshareEntitiesView(HomeAssistantView):
                     "domain": domain,
                     "state": state.state,
                     "unit": state.attributes.get("unit_of_measurement", ""),
+                    "attributes": dict(state.attributes),
                 }
             )
 
