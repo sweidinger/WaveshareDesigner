@@ -58,7 +58,11 @@ async function fetchEntityStates() {
         for (const entity of entities) {
             if (entity.entity_id && entity.state !== undefined) {
                 const stateValue = entity.unit ? `${entity.state} ${entity.unit}` : entity.state;
-                newCache[entity.entity_id] = stateValue;
+                // Store both state and attributes
+                newCache[entity.entity_id] = {
+                    state: stateValue,
+                    attributes: entity.attributes || {}
+                };
             }
         }
         entityStatesCache = newCache;
@@ -67,7 +71,7 @@ async function fetchEntityStates() {
         
         // Check for specific entity
         if (newCache['binary_sensor.balkontur_window']) {
-            console.log(`[EntityStates] ✓ binary_sensor.balkontur_window found: ${newCache['binary_sensor.balkontur_window']}`);
+            console.log(`[EntityStates] ✓ binary_sensor.balkontur_window found: ${newCache['binary_sensor.balkontur_window'].state}`);
         } else {
             console.log(`[EntityStates] ✗ binary_sensor.balkontur_window NOT found in cache`);
         }
@@ -82,8 +86,17 @@ async function fetchEntityStates() {
     }
 }
 
-function getEntityState(entityId) {
-    return entityStatesCache[entityId] || null;
+function getEntityState(entityId, attribute = null) {
+    const cached = entityStatesCache[entityId];
+    if (!cached) return null;
+    
+    // If attribute is specified, return the attribute value
+    if (attribute && cached.attributes && cached.attributes[attribute] !== undefined) {
+        return cached.attributes[attribute];
+    }
+    
+    // Otherwise return the state (backward compatible)
+    return cached.state || null;
 }
 
 async function loadHaEntitiesIfNeeded() {
@@ -1904,6 +1917,7 @@ function renderCanvas() {
 
             if (type === "sensor_text") {
                 const entityId = widget.entity_id || "";
+                const attribute = widget.attribute || "";
                 const label = widget.title || "";
                 const valueFormat = props.value_format || "value_only";
                 const labelFontSize = props.label_font_size || 14;
@@ -1913,8 +1927,9 @@ function renderCanvas() {
                 let displayValue = "23.5°C";
 
                 if (hasHaBackend() && entityId) {
-                    const state = getEntityState(entityId);
-                    console.log(`[Canvas] Rendering sensor_text: entity=${entityId}, state=${state}, label=${label}, format=${valueFormat}`);
+                    const state = getEntityState(entityId, attribute);
+                    const attrMarker = attribute ? ` attr=${attribute}` : "";
+                    console.log(`[Canvas] Rendering sensor_text: entity=${entityId}${attrMarker}, state=${state}, label=${label}, format=${valueFormat}`);
 
                     if (state !== null && state !== undefined) {
                         const precision = parseInt(props.precision, 10);
